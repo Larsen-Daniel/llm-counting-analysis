@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+*.swp
+*.swo
+
+# Temporary files
+*.log
+nohup.out
+
+# AWS credentials
+.aws/
+credentials.json
+
+# Large files (already committed results are OK)
+*.safetensors
+*.bin
+pytorch_model.bin
