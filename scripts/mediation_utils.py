@@ -115,6 +115,12 @@ def patch_and_generate(model, tokenizer, prompt: str, patch_activation: torch.Te
     Args:
         patch_activation: Single position activation tensor [batch, hidden_dim]
     """
+    # Defensive check
+    if not isinstance(patch_activation, torch.Tensor):
+        raise TypeError(f"patch_activation must be a torch.Tensor, got {type(patch_activation)}. "
+                       f"Did you forget to reload mediation_utils after git pull?")
+    if len(patch_activation.shape) != 2:
+        raise ValueError(f"patch_activation must have shape [batch, hidden_dim], got {patch_activation.shape}")
 
     def patching_hook(module, input, output):
         # Handle both tuple output and direct tensor output
