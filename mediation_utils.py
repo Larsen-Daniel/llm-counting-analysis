@@ -96,12 +96,17 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
         activations_high = extract_activations(model, tokenizer, pair_high['prompt'], device)
 
         inputs_low = tokenizer(pair_low['prompt'], return_tensors="pt")
-        last_pos = inputs_low.input_ids.shape[1] - 1
+        seq_len = inputs_low.input_ids.shape[1]
+        last_pos = seq_len - 1
+
+        # Ensure patch position is within bounds
+        max_pos = activations_high[0].shape[1] - 1
+        patch_pos = min(last_pos, max_pos)
 
         for layer_idx in range(n_layers):
             generated = patch_and_generate(
                 model, tokenizer, pair_low['prompt'],
-                activations_high, layer_idx, last_pos, device
+                activations_high, layer_idx, patch_pos, device
             )
 
             predicted = extract_answer(generated)
