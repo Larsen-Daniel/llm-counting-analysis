@@ -19,28 +19,62 @@ def extract_answer(text: str) -> int | None:
     return None
 
 def generate_minimal_pairs(dataset: List[Dict], n_pairs: int = 200) -> List[Tuple[Dict, Dict]]:
-    """Generate minimal pairs where count differs by exactly 1."""
+    """Generate minimal pairs by swapping the first word in the list."""
+
+    # Category words to use for swapping
+    CATEGORIES = {
+        "fruit": ["apple", "banana", "cherry", "grape", "orange"],
+        "animal": ["dog", "cat", "bird", "fish", "horse"],
+        "vehicle": ["car", "bus", "truck", "bike", "train"],
+        "color": ["red", "blue", "green", "yellow", "purple"],
+        "tool": ["hammer", "wrench", "saw", "drill", "pliers"],
+        "furniture": ["chair", "table", "sofa", "bed", "desk"],
+        "clothing": ["shirt", "pants", "dress", "shoes", "hat"],
+        "food": ["pizza", "burger", "pasta", "rice", "bread"],
+        "sport": ["soccer", "tennis", "baseball", "hockey", "golf"],
+        "instrument": ["guitar", "piano", "drums", "violin", "flute"]
+    }
+
+    NOISE_WORDS = ["bowl", "window", "door", "cloud", "mountain"]
+
     pairs = []
 
-    # Group by category and answer
-    by_category = {}
     for ex in dataset:
-        key = (ex['category'], ex['answer'])
-        if key not in by_category:
-            by_category[key] = []
-        by_category[key].append(ex)
+        if len(pairs) >= n_pairs:
+            break
 
-    # Find pairs with adjacent counts
-    for (cat, ans) in by_category:
-        if (cat, ans + 1) in by_category:
-            examples_low = by_category[(cat, ans)]
-            examples_high = by_category[(cat, ans + 1)]
+        category = ex['category']
+        word_list = ex['word_list']
+        first_word = word_list[0]
 
-            for low in examples_low[:10]:  # Limit per category
-                for high in examples_high[:10]:
-                    if len(pairs) >= n_pairs:
-                        return pairs
-                    pairs.append((low, high))
+        # Check if first word matches the category
+        if first_word in CATEGORIES.get(category, []):
+            # First word matches - swap it with a noise word to decrease count
+            new_word = NOISE_WORDS[len(pairs) % len(NOISE_WORDS)]
+            new_list = [new_word] + word_list[1:]
+            new_answer = ex['answer'] - 1
+
+            pair_low = {
+                'prompt': f"Count how many {category} are in this list: {', '.join(new_list)}. Answer with just the number in parentheses like (N).",
+                'word_list': new_list,
+                'category': category,
+                'answer': new_answer
+            }
+            pairs.append((pair_low, ex))
+
+        else:
+            # First word doesn't match - swap it with a category word to increase count
+            new_word = CATEGORIES[category][len(pairs) % len(CATEGORIES[category])]
+            new_list = [new_word] + word_list[1:]
+            new_answer = ex['answer'] + 1
+
+            pair_high = {
+                'prompt': f"Count how many {category} are in this list: {', '.join(new_list)}. Answer with just the number in parentheses like (N).",
+                'word_list': new_list,
+                'category': category,
+                'answer': new_answer
+            }
+            pairs.append((ex, pair_high))
 
     return pairs
 
