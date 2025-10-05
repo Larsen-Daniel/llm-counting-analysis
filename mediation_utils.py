@@ -103,21 +103,37 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
     n_layers = len(model.model.layers)
     layer_effects = {i: [] for i in range(n_layers)}
 
-    for pair_low, pair_high in tqdm(pairs, desc="Mediation analysis"):
-        activations_high = extract_activations(model, tokenizer, pair_high['prompt'], device)
+    # Process one layer at a time to save memory
+    for layer_idx in tqdm(range(n_layers), desc="Processing layers"):
+        for pair_low, pair_high in pairs:
+            # Extract only the activation for this specific layer
+            inputs_high = tokenizer(pair_high['prompt'], return_tensors="pt").to(device)
 
-        inputs_low = tokenizer(pair_low['prompt'], return_tensors="pt")
-        seq_len = inputs_low.input_ids.shape[1]
-        last_pos = seq_len - 1
+            with torch.no_grad():
+                outputs_high = model(
+                    input_ids=inputs_high.input_ids,
+                    output_hidden_states=True
+                )
 
-        # Ensure patch position is within bounds
-        max_pos = activations_high[0].shape[1] - 1
-        patch_pos = min(last_pos, max_pos)
+            # Get only this layer's activation and move to CPU immediately
+            activation_high = outputs_high.hidden_states[layer_idx].cpu()
 
-        for layer_idx in range(n_layers):
+            # Clear GPU memory
+            del outputs_high
+            torch.cuda.empty_cache()
+
+            inputs_low = tokenizer(pair_low['prompt'], return_tensors="pt")
+            seq_len = inputs_low.input_ids.shape[1]
+            last_pos = seq_len - 1
+
+            # Ensure patch position is within bounds
+            max_pos = activation_high.shape[1] - 1
+            patch_pos = min(last_pos, max_pos)
+
+            # Patch just this layer
             generated = patch_and_generate(
                 model, tokenizer, pair_low['prompt'],
-                activations_high, layer_idx, patch_pos, device
+                [activation_high], 0, patch_pos, device  # Pass single activation, use index 0
             )
 
             predicted = extract_answer(generated)
@@ -126,6 +142,9 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
                 layer_effects[layer_idx].append(1)
             else:
                 layer_effects[layer_idx].append(0)
+
+            # Clear activation
+            del activation_high
 
     results = {
         'layer_effects': {},
