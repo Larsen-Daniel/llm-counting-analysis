@@ -258,9 +258,9 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
         )
         baseline_answer = extract_answer(baseline_text)
 
-        # Sample 5 times with temperature=0.7 to measure reliability
+        # Sample 4 times with temperature=0.7 to measure reliability
         sampled_answers = []
-        for _ in range(5):
+        for _ in range(4):
             with torch.no_grad():
                 outputs_sampled = model.generate(
                     inputs_low.input_ids,
@@ -276,15 +276,15 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
             sampled_answer = extract_answer(sampled_text)
             sampled_answers.append(sampled_answer)
 
-        # Only keep if model gets it right 100% of the time (6/6 including greedy)
+        # Only keep if model gets it right 100% of the time (5/5 including greedy)
         correct_samples = sum(1 for ans in sampled_answers if ans == pair_low['answer'])
-        is_perfect = (correct_samples == 5 and baseline_answer == pair_low['answer'])
+        is_perfect = (correct_samples == 4 and baseline_answer == pair_low['answer'])
 
         # Show result
         status = "✓✓" if is_perfect else "✗ "
         word_list_str = ' '.join(pair_low['word_list'])
         print(f"{status} Test {tested_count}: [{word_list_str}] → greedy={baseline_answer}, target={pair_low['answer']}, " +
-              f"sampled={sampled_answers}, p={correct_samples}/5")
+              f"sampled={sampled_answers}, p={correct_samples}/4")
 
         if is_perfect:
             filtered_pairs.append((pair_low, pair_high))
