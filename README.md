@@ -1,143 +1,179 @@
 # LLM Counting Analysis
 
-Causal mediation analysis and mechanistic interpretability experiments on LLMs performing simple counting tasks.
+Mechanistic interpretability experiments investigating how language models internally represent and track counts during simple counting tasks.
 
-## Overview
+## Experiments Performed
 
-This project investigates how language models internally represent and track running counts. We use three complementary approaches:
+### 1. Model Benchmarking on Counting Task
 
-1. **Benchmark**: Evaluate model accuracy on counting tasks
-2. **Causal Mediation**: Identify which layers encode count information via activation patching
-3. **Linear Probes**: Train classifiers to decode count from layer activations
-4. **Intervention**: Use probes to steer model outputs by modifying activations
+**Objective**: Evaluate how accurately different foundation models can count matching items in short lists.
 
-## Repository Structure
+**Dataset**: 1000 examples from `counting_dataset.jsonl`
+- Lists of 5-10 words randomly selected from 10 categories (fruit, animal, vehicle, color, tool, furniture, clothing, food, sport, instrument)
+- 0-5 matching items per list (balanced distribution)
+- Clear prompt format requesting answer in parentheses: `(N)`
 
-```
-.
-├── generate_dataset.py          # Generate counting task dataset
-├── benchmark_bedrock.py          # Benchmark models on AWS Bedrock
-├── causal_mediation_v2.py        # Full analysis pipeline (mediation + probes + intervention)
-├── counting_dataset.jsonl        # Generated dataset (5000 examples)
-├── results/                      # Experiment outputs
-│   ├── benchmark_results_bedrock.json
-│   ├── benchmark_results_bedrock.png
-│   └── mediation_results_v2.json (pending)
-└── README.md
-```
+**Models tested**:
+- AWS Bedrock: Llama 3.1 70B Instruct, Llama 3.1 8B Instruct, Claude 3.5 Haiku, Mistral 7B Instruct
+- HuggingFace (via Google Colab): Qwen 2.5 3B Instruct
 
-## Experiments
+**Results**:
+| Model | Accuracy | Parse Errors | Numerical Errors |
+|-------|----------|--------------|------------------|
+| Llama 3.1 70B | **78.2%** | 0.0% | 21.8% |
+| Claude 3.5 Haiku | 57.8% | 0.0% | 42.2% |
+| Mistral 7B | 49.6% | 0.3% | 50.1% |
+| Llama 3.1 8B | 34.9% | 0.0% | 65.1% |
 
-### 1. Dataset Generation
+**Key findings**:
+- All models successfully learned the output format (`(N)`) with minimal parse errors
+- Accuracy scales strongly with model size (70B vs 8B shows 2.2x improvement)
+- Even on this simple task, smaller models struggle significantly
+- Lenient parsing (accepting any number in parentheses or first number) was critical for fair evaluation
 
-Create a balanced dataset of counting tasks:
-- 10 categories (fruit, animal, vehicle, color, tool, furniture, clothing, food, sport, instrument)
-- Lists of 5-10 words
-- 0-5 matching items per list
-- Clear prompt format with expected answer in parentheses: `(N)`
+**Outputs**: `results/benchmark_results_bedrock.json`, `results/benchmark_results_bedrock.png`
 
-```bash
-python generate_dataset.py
-```
+---
 
-### 2. Model Benchmark
+### 2. Causal Mediation Analysis via Activation Patching
 
-Benchmark models on AWS Bedrock (1000 examples):
+**Objective**: Identify which transformer layers encode the running count by measuring causal effects of activation interventions.
 
-**Results:**
-- **Llama 3.1 70B**: 78.2% accuracy (best)
-- **Claude Haiku 3.5**: 57.8%
-- **Mistral 7B**: 49.6%
-- **Llama 3.1 8B**: 34.9%
+**Method**:
+- Generated 200 minimal pairs: identical word lists except one word changes category membership, causing count to differ by exactly 1
+- For each pair, extracted activations from the "count=N+1" prompt at each layer
+- Patched these activations into the "count=N" prompt at the same position
+- Measured how often the patched prompt's output changed from N to N+1
 
-Parse error rates were near 0% with lenient parsing (accepts `(N)` format or first number in output).
+**Model**: Qwen 2.5 1.5B Instruct (open-source model via HuggingFace)
 
-```bash
-python benchmark_bedrock.py --max_examples 1000
-```
+**Results**:
+- **Layers 21-25 showed strongest causal effects** (~0.44-0.45 mean effect)
+  - Layer 21: 0.445 ± 0.124
+  - Layer 22: 0.450 ± 0.127
+  - Layer 23: 0.450 ± 0.120
+  - Layer 24: 0.445 ± 0.131
+  - Layer 25: 0.440 ± 0.128
+- Early layers (0-10) showed minimal effects (<0.25)
+- Effects peaked in mid-to-late layers, suggesting count computation happens progressively
 
-### 3. Causal Mediation Analysis
+**Key findings**:
+- Count information is causally represented in specific mid-to-late layers
+- Multiple adjacent layers show similar effects, suggesting distributed representation
+- The sharp transition from low to high effects indicates a computational phase change
 
-Use activation patching to identify which layers encode running count:
-- Create minimal pairs: identical lists except one word (count differs by 1)
-- Patch activations from count=N+1 into count=N prompt
-- Measure which layers cause output to shift toward N+1
+**Outputs**: `results/mediation_results_v2.json`, `results/mediation_results_v2.png`
 
-```bash
-python causal_mediation_v2.py --mediation_examples 200 --skip_probe --skip_intervention
-```
+---
 
-### 4. Linear Probes
+### 3. Linear Probe Training (Pending)
 
-Train linear classifiers to decode count (0-5) from layer activations:
-- Collect activations from 5000 examples
-- Train logistic regression on each layer
-- Identify which layers have linearly separable count representations
+**Objective**: Determine if count is linearly represented in layer activations by training classifiers to decode count (0-5) from each layer.
 
-```bash
-python causal_mediation_v2.py --probe_examples 5000 --skip_mediation --skip_intervention
-```
+**Planned method**:
+- Collect activations from all 28 layers on 5000 examples
+- Train logistic regression classifiers for each layer
+- Measure accuracy and compare to mediation results
 
-### 5. Intervention Experiment
+**Expected outcome**: Layers with high causal effects (21-25) should also have high probe accuracy, validating that count is both causally important and linearly accessible.
 
-Use trained probes to steer model outputs:
-- Find best probe layer
-- Compute steering vectors for each count (0-5)
-- Intervene by adding steering difference to activations
-- Measure if output changes as expected
+---
 
-```bash
-python causal_mediation_v2.py --intervention_examples 100
-```
+### 4. Activation Intervention (Pending)
 
-## Requirements
+**Objective**: Use trained probes to steer model outputs by modifying activations with "steering vectors."
 
-```
-torch
-transformers
-accelerate
-boto3
-numpy
-matplotlib
-seaborn
-scikit-learn
-tqdm
-```
+**Planned method**:
+- Identify best probe layer from experiment #3
+- Compute steering vectors: difference in mean activations between count=N and count=M examples
+- Add steering vector to activations during forward pass
+- Measure if output changes from N to M as expected
 
-Install with:
+**Expected outcome**: If count is cleanly represented, adding the (M-N) steering vector should reliably change output from N to M.
+
+---
+
+## Repository Contents
+
+**Core scripts**:
+- `generate_dataset.py` - Generate balanced counting task dataset
+- `benchmark_bedrock.py` - Benchmark models on AWS Bedrock
+- `qwen_benchmark_colab.ipynb` - **Google Colab notebook to benchmark Qwen 2.5 3B** (recommended for easy GPU access)
+- `causal_mediation_v2.py` - Run mediation analysis, probe training, and intervention experiments
+- `plot_mediation.py` - Generate visualization of mediation results
+
+**Data**:
+- `counting_dataset.jsonl` - 5000 examples (5-10 words, 0-5 matches, balanced)
+
+**Results** (in `results/` folder):
+- `benchmark_results_bedrock.json` - Full benchmark data for 4 models
+- `benchmark_results_bedrock.png` - Bar charts comparing accuracy and parse errors
+- `mediation_results_v2.json` - Layer-wise causal effects from activation patching
+- `mediation_results_v2.png` - Visualization showing layers 21-25 with highest effects
+
+---
+
+## How to Run (Optional)
+
+<details>
+<summary>Click to expand instructions</summary>
+
+### Requirements
 ```bash
 pip install torch transformers accelerate boto3 numpy matplotlib seaborn scikit-learn tqdm
 ```
 
-## AWS Bedrock Setup
-
-For benchmarking, you need AWS credentials with access to Bedrock models:
-
+### AWS Bedrock Setup
 1. Configure AWS CLI: `aws configure`
-2. Request model access in AWS Console (Bedrock → Model access)
-3. Use inference profiles with `us.` prefix for cross-region access
+2. Request model access in AWS Console (Bedrock → Model access → Enable for us-east-1)
 
-## Key Findings
+### Generate Dataset
+```bash
+python generate_dataset.py
+```
 
-### Benchmark
-- Larger models (70B) significantly outperform smaller ones (8B) on this simple task
-- Even small models can learn the output format with clear prompts
-- Lenient parsing dramatically improves measured accuracy
+### Benchmark Models on AWS Bedrock
+```bash
+python benchmark_bedrock.py --max_examples 1000
+```
 
-### Analysis (Pending)
-- Mediation analysis running on EC2
-- Expected to identify middle-to-late layers as encoding count
-- Linear probes will validate if count is linearly represented
+### Benchmark Qwen on Google Colab (Recommended)
+1. Open `qwen_benchmark_colab.ipynb` in Google Colab
+2. Enable GPU: Runtime → Change runtime type → GPU → T4 GPU
+3. Run all cells
+4. Download results file when complete
+
+### Run Mediation Analysis
+```bash
+python causal_mediation_v2.py --mediation_examples 200 --skip_probe --skip_intervention
+```
+
+### Train Linear Probes
+```bash
+python causal_mediation_v2.py --probe_examples 5000 --skip_mediation --skip_intervention
+```
+
+### Run Intervention Experiment
+```bash
+python causal_mediation_v2.py --intervention_examples 100
+```
+
+### Visualize Results
+```bash
+python plot_mediation.py
+```
+
+</details>
+
+---
 
 ## Citation
 
-If you use this code, please cite:
-
-```
+```bibtex
 @misc{llm-counting-analysis,
-  author = {Daniel},
-  title = {LLM Counting Analysis},
+  author = {Daniel Larsen},
+  title = {LLM Counting Analysis: Mechanistic Interpretability of Simple Counting Tasks},
   year = {2025},
-  url = {https://github.com/yourusername/llm-counting-analysis}
+  url = {https://github.com/Larsen-Daniel/llm-counting-analysis}
 }
 ```
