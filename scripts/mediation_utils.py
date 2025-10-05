@@ -49,6 +49,12 @@ def generate_minimal_pairs(dataset: List[Dict], n_pairs: int = 200, list_length:
     # Filter to only examples with specified list length
     filtered_dataset = [ex for ex in dataset if len(ex['word_list']) == list_length]
 
+    print(f"Filtered to {len(filtered_dataset)} examples with list_length={list_length}")
+    if len(filtered_dataset) == 0:
+        print(f"WARNING: No examples found with list_length={list_length}")
+        print(f"Available lengths: {set(len(ex['word_list']) for ex in dataset[:100])}")
+        return []
+
     for ex in filtered_dataset:
         if len(pairs) >= n_pairs:
             break
@@ -103,6 +109,12 @@ Answer: """,
                 'answer': new_answer
             }
             pairs.append((ex, pair_high))
+
+    print(f"Generated {len(pairs)} minimal pairs")
+    if len(pairs) > 0:
+        print(f"\nExample pair:")
+        print(f"  Low:  {pairs[0][0]['word_list']} → answer={pairs[0][0]['answer']}")
+        print(f"  High: {pairs[0][1]['word_list']} → answer={pairs[0][1]['answer']}")
 
     return pairs
 
@@ -214,6 +226,13 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
                           if baseline_outputs[i] is not None
                           and baseline_outputs[i] == target_answers[i])
     baseline_accuracy = baseline_correct / len(pairs)
+
+    # Show sample outputs for debugging
+    print(f"\nSample baseline outputs (first 3):")
+    for i in range(min(3, len(pairs))):
+        print(f"  Example {i+1}: predicted={baseline_outputs[i]}, target={target_answers[i]}, " +
+              f"correct={baseline_outputs[i] == target_answers[i]}")
+
     print(f"\nBaseline accuracy: {baseline_accuracy:.1%} ({baseline_correct}/{len(pairs)})")
     print("="*80 + "\n")
 
