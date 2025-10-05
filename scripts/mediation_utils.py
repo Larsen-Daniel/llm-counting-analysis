@@ -231,8 +231,17 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
     filtered_pairs = []
     tested_count = 0
 
-    for idx, (pair_low, pair_high) in enumerate(tqdm(pairs, desc="Testing examples")):
+    for idx, (pair_low, pair_high) in enumerate(pairs):
+        if len(filtered_pairs) >= 20:
+            print(f"\n✓ Found 20 perfect examples after testing {tested_count} pairs")
+            break
+
         tested_count += 1
+
+        # Skip if answer is 0 (too easy)
+        if pair_low['answer'] == 0:
+            print(f"⊘  Test {tested_count}: Skipped (answer=0)")
+            continue
 
         # Get baseline (unpatched) output - greedy decoding
         inputs_low = tokenizer(pair_low['prompt'], return_tensors="pt").to(device)
@@ -267,7 +276,7 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
             sampled_answer = extract_answer(sampled_text)
             sampled_answers.append(sampled_answer)
 
-        # Only keep if model gets it right 100% of the time (5/5)
+        # Only keep if model gets it right 100% of the time (6/6 including greedy)
         correct_samples = sum(1 for ans in sampled_answers if ans == pair_low['answer'])
         is_perfect = (correct_samples == 5 and baseline_answer == pair_low['answer'])
 
@@ -281,10 +290,6 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
             filtered_pairs.append((pair_low, pair_high))
             baseline_outputs.append(baseline_answer)
             target_answers.append(pair_low['answer'])
-
-            if len(filtered_pairs) >= 20:
-                print(f"\n✓ Found 20 perfect examples after testing {tested_count} pairs")
-                break
 
     if len(filtered_pairs) < 20:
         print(f"\nWARNING: Only found {len(filtered_pairs)} perfect examples out of {tested_count} tested")
@@ -311,9 +316,15 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
     print("="*80)
 
     for idx, (pair_low, pair_high) in enumerate(pairs):
-        print(f"\nExample {idx+1}/{len(pairs)}: {' '.join(pair_low['word_list'])}")
+        low_words = ' '.join(pair_low['word_list'])
+        high_words = ' '.join(pair_high['word_list'])
+        print(f"\nExample {idx+1}/{len(pairs)}:")
+        print(f"  Low  (answer={pair_low['answer']}): {low_words}")
+        print(f"  High (answer={pair_high['answer']}): {high_words}")
+        print(f"  Target after patching: {pair_low['answer']} → {pair_high['answer']}")
 
         # 2. Extract activations from high-count prompt (all layers at once)
+        inputs_low = tokenizer(pair_low['prompt'], return_tensors="pt").to(device)
         inputs_high = tokenizer(pair_high['prompt'], return_tensors="pt").to(device)
         with torch.no_grad():
             outputs_high = model(
