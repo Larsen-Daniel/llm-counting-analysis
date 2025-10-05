@@ -108,9 +108,13 @@ def extract_activations(model, tokenizer, prompt: str, device: str) -> List[torc
 
     return [hidden.cpu() for hidden in outputs.hidden_states]
 
-def patch_and_generate(model, tokenizer, prompt: str, patch_activations: torch.Tensor,
+def patch_and_generate(model, tokenizer, prompt: str, patch_activation: torch.Tensor,
                        layer_idx: int, patch_pos: int, device: str) -> str:
-    """Generate with patched activations - only patches the initial forward pass."""
+    """Generate with patched activation at a specific layer and position.
+
+    Args:
+        patch_activation: Single position activation tensor [batch, hidden_dim]
+    """
 
     def patching_hook(module, input, output):
         # Handle both tuple output and direct tensor output
@@ -119,14 +123,14 @@ def patch_and_generate(model, tokenizer, prompt: str, patch_activations: torch.T
             # Only patch if this is the initial forward pass (full sequence length)
             if hidden_states.shape[1] > patch_pos:
                 hidden_states = hidden_states.clone()
-                hidden_states[:, patch_pos, :] = patch_activations[layer_idx][:, patch_pos, :].to(device)
+                hidden_states[:, patch_pos, :] = patch_activation.to(device)
                 return (hidden_states,) + output[1:]
             return output
         else:
             # Only patch if this is the initial forward pass (full sequence length)
             if output.shape[1] > patch_pos:
                 output = output.clone()
-                output[:, patch_pos, :] = patch_activations[layer_idx][:, patch_pos, :].to(device)
+                output[:, patch_pos, :] = patch_activation.to(device)
             return output
 
     layer = model.model.layers[layer_idx]
@@ -170,7 +174,7 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
                 )
 
             # Get only this layer's activation and move to CPU immediately
-            activation_high = outputs_high.hidden_states[layer_idx].cpu()
+            activation_high_full = outputs_high.hidden_states[layer_idx].cpu()
 
             # Clear GPU memory
             del outputs_high
@@ -181,13 +185,16 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
             last_pos = seq_len - 1
 
             # Ensure patch position is within bounds
-            max_pos = activation_high.shape[1] - 1
+            max_pos = activation_high_full.shape[1] - 1
             patch_pos = min(last_pos, max_pos)
+
+            # Extract activation at the patch position [batch, hidden_dim]
+            activation_at_pos = activation_high_full[:, patch_pos, :].clone()
 
             # Patch just this layer
             generated = patch_and_generate(
                 model, tokenizer, pair_low['prompt'],
-                [activation_high], 0, patch_pos, device  # Pass single activation, use index 0
+                activation_at_pos, layer_idx, patch_pos, device
             )
 
             predicted = extract_answer(generated)
@@ -198,7 +205,8 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
                 layer_effects[layer_idx].append(0)
 
             # Clear activation
-            del activation_high
+            del activation_high_full
+            del activation_at_pos
 
     results = {
         'layer_effects': {},
