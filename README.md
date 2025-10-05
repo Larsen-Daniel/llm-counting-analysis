@@ -44,10 +44,24 @@ Mechanistic interpretability experiments investigating how language models inter
 **Objective**: Identify which transformer layers encode the running count by measuring causal effects of activation interventions.
 
 **Method**:
-- Generated 200 minimal pairs: identical word lists except one word changes category membership, causing count to differ by exactly 1
+- Generated 200 minimal pairs: identical word lists except the first word changes category membership, causing count to differ by exactly 1
 - For each pair, extracted activations from the "count=N+1" prompt at each layer
 - Patched these activations into the "count=N" prompt at the same position
 - Measured how often the patched prompt's output changed from N to N+1
+
+**Example minimal pair**:
+```
+Low count (4 tools):
+Type: tool
+List: tuba tennis ruler clamp motorcycle indigo tape document hammer
+
+High count (5 tools):
+Type: tool
+List: saw tennis ruler clamp motorcycle indigo tape document hammer
+
+First word changed: 'tuba' → 'saw'
+Count changes from 4 to 5
+```
 
 **Model**: Qwen 2.5 1.5B Instruct (open-source model via HuggingFace)
 
@@ -170,6 +184,8 @@ python plot_mediation.py
 </details>
 
 ---
+
+*Written with the help of Claude Sonnet 4.5*
 
 ## Citation
 
