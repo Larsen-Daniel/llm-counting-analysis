@@ -19,7 +19,7 @@ def extract_answer(text: str) -> int | None:
 
     return None
 
-def generate_minimal_pairs(dataset: List[Dict], n_pairs: int = 200, list_length: int = 5) -> List[Tuple[Dict, Dict]]:
+def generate_minimal_pairs(dataset: List[Dict], n_pairs: int = 200, list_length: int = 4) -> List[Tuple[Dict, Dict]]:
     """Generate minimal pairs by swapping the first word in the list.
 
     Args:
@@ -210,14 +210,16 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
     layer_outputs = {i: [] for i in range(n_layers)}
     target_answers = []
 
-    # First pass: benchmark baseline performance
+    # First pass: benchmark baseline performance and filter to perfect examples
     print("\n" + "="*80)
-    print("BENCHMARKING BASELINE (unpatched model)")
+    print("BENCHMARKING BASELINE (filtering to perfect examples)")
     print("="*80)
 
-    for idx, (pair_low, pair_high) in enumerate(tqdm(pairs, desc="Baseline evaluation")):
-        # We're testing the LOW prompt, so target is pair_low['answer']
-        target_answers.append(pair_low['answer'])
+    filtered_pairs = []
+    tested_count = 0
+
+    for idx, (pair_low, pair_high) in enumerate(tqdm(pairs, desc="Testing examples")):
+        tested_count += 1
 
         # Get baseline (unpatched) output - greedy decoding
         inputs_low = tokenizer(pair_low['prompt'], return_tensors="pt").to(device)
@@ -233,7 +235,6 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
             skip_special_tokens=True
         )
         baseline_answer = extract_answer(baseline_text)
-        baseline_outputs.append(baseline_answer)
 
         # Sample 5 times with temperature=0.7 to measure reliability
         sampled_answers = []
@@ -253,16 +254,30 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
             sampled_answer = extract_answer(sampled_text)
             sampled_answers.append(sampled_answer)
 
-        # Calculate success rate with sampling
+        # Only keep if model gets it right 100% of the time (5/5)
         correct_samples = sum(1 for ans in sampled_answers if ans == pair_low['answer'])
-        sample_rate = correct_samples / 5
+        is_perfect = (correct_samples == 5 and baseline_answer == pair_low['answer'])
 
-        # Show ALL examples with word lists and sampling stats
-        is_correct = baseline_answer == pair_low['answer']
-        status = "✓" if is_correct else "✗"
+        # Show result
+        status = "✓✓" if is_perfect else "✗ "
         word_list_str = ' '.join(pair_low['word_list'])
-        print(f"{status} Example {idx+1}: [{word_list_str}] → greedy={baseline_answer}, target={pair_low['answer']}, " +
-              f"sampled={sampled_answers}, p(correct)={sample_rate:.1%}")
+        print(f"{status} Test {tested_count}: [{word_list_str}] → greedy={baseline_answer}, target={pair_low['answer']}, " +
+              f"sampled={sampled_answers}, p={correct_samples}/5")
+
+        if is_perfect:
+            filtered_pairs.append((pair_low, pair_high))
+            baseline_outputs.append(baseline_answer)
+            target_answers.append(pair_low['answer'])
+
+            if len(filtered_pairs) >= 20:
+                print(f"\n✓ Found 20 perfect examples after testing {tested_count} pairs")
+                break
+
+    if len(filtered_pairs) < 20:
+        print(f"\nWARNING: Only found {len(filtered_pairs)} perfect examples out of {tested_count} tested")
+
+    # Use filtered pairs for rest of analysis
+    pairs = filtered_pairs
 
     # Report baseline immediately
     baseline_correct = sum(1 for i in range(len(pairs))
@@ -274,8 +289,12 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
     print("="*80 + "\n")
 
     # Second pass: run mediation analysis
-    print("Running activation patching across all layers...")
-    for idx, (pair_low, pair_high) in enumerate(tqdm(pairs, desc="Patching activations")):
+    print("\n" + "="*80)
+    print("ACTIVATION PATCHING ACROSS ALL LAYERS")
+    print("="*80)
+
+    for idx, (pair_low, pair_high) in enumerate(pairs):
+        print(f"\nExample {idx+1}/{len(pairs)}: {' '.join(pair_low['word_list'])}")
 
         # 2. Extract activations from high-count prompt (all layers at once)
         inputs_high = tokenizer(pair_high['prompt'], return_tensors="pt").to(device)
@@ -305,6 +324,13 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
 
             predicted = extract_answer(generated)
             layer_outputs[layer_idx].append(predicted)
+
+            # Show effect of this layer's patch
+            baseline_val = baseline_outputs[idx]
+            target_val = baseline_val + 1  # pair_high answer
+            changed = "→" if predicted != baseline_val else "="
+            hit_target = "✓" if predicted == target_val else " "
+            print(f"  Layer {layer_idx:2d}: {baseline_val} {changed} {predicted} {hit_target}")
 
         # Clear memory
         del outputs_high
