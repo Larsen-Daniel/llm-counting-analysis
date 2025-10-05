@@ -1,0 +1,177 @@
+{
+  "probe": {
+    "model_name": "Qwen/Qwen2.5-1.5B-Instruct",
+    "num_layers": 28,
+    "probe_accuracy": {
+      "0": {
+        "train_accuracy": 0.72925,
+        "test_accuracy": 0.696,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "1": {
+        "train_accuracy": 0.79225,
+        "test_accuracy": 0.75,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "2": {
+        "train_accuracy": 0.7985,
+        "test_accuracy": 0.759,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "3": {
+        "train_accuracy": 0.801,
+        "test_accuracy": 0.766,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "4": {
+        "train_accuracy": 0.814,
+        "test_accuracy": 0.775,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "5": {
+        "train_accuracy": 0.827,
+        "test_accuracy": 0.766,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "6": {
+        "train_accuracy": 0.80825,
+        "test_accuracy": 0.755,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "7": {
+        "train_accuracy": 0.81,
+        "test_accuracy": 0.761,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "8": {
+        "train_accuracy": 0.79725,
+        "test_accuracy": 0.746,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "9": {
+        "train_accuracy": 0.7905,
+        "test_accuracy": 0.739,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "10": {
+        "train_accuracy": 0.8035,
+        "test_accuracy": 0.758,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "11": {
+        "train_accuracy": 0.799,
+        "test_accuracy": 0.757,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "12": {
+        "train_accuracy": 0.8115,
+        "test_accuracy": 0.763,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "13": {
+        "train_accuracy": 0.82675,
+        "test_accuracy": 0.764,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "14": {
+        "train_accuracy": 0.843,
+        "test_accuracy": 0.787,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "15": {
+        "train_accuracy": 0.88025,
+        "test_accuracy": 0.807,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "16": {
+        "train_accuracy": 0.89325,
+        "test_accuracy": 0.818,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "17": {
+        "train_accuracy": 0.89675,
+        "test_accuracy": 0.845,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "18": {
+        "train_accuracy": 0.936,
+        "test_accuracy": 0.878,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "19": {
+        "train_accuracy": 0.9275,
+        "test_accuracy": 0.859,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "20": {
+        "train_accuracy": 0.95425,
+        "test_accuracy": 0.908,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "21": {
+        "train_accuracy": 0.969,
+        "test_accuracy": 0.918,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "22": {
+        "train_accuracy": 0.968,
+        "test_accuracy": 0.912,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "23": {
+        "train_accuracy": 0.97725,
+        "test_accuracy": 0.926,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "24": {
+        "train_accuracy": 0.9775,
+        "test_accuracy": 0.926,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "25": {
+        "train_accuracy": 0.98325,
+        "test_accuracy": 0.925,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "26": {
+        "train_accuracy": 0.99025,
+        "test_accuracy": 0.935,
+        "num_train": 4000,
+        "num_test": 1000
+      },
+      "27": {
+        "train_accuracy": 0.9985,
+        "test_accuracy": 0.939,
+        "num_train": 4000,
+        "num_test": 1000
+      }
+    },
+    "examples_used": 5000
+  }
+}

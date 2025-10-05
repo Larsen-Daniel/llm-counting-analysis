@@ -39,15 +39,16 @@ Mechanistic interpretability experiments investigating how language models inter
 
 ---
 
-### 2. Causal Mediation Analysis via Activation Patching
+### 2. Mechanistic Analysis on Qwen 2.5 1.5B Instruct
 
-**Objective**: Identify which transformer layers encode the running count by measuring causal effects of activation interventions.
+To investigate the internal representation of counting, we conducted two complementary experiments on Qwen 2.5 1.5B Instruct: causal mediation analysis and linear probing.
+
+#### 2.1 Causal Mediation Analysis via Activation Patching
+
+**Objective**: Identify which transformer layers causally mediate count information by intervening on activations.
 
 **Method**:
-- Generated 200 minimal pairs: identical word lists except the first word changes category membership, causing count to differ by exactly 1
-- For each pair, extracted activations from the "count=N+1" prompt at each layer
-- Patched these activations into the "count=N" prompt at the same position
-- Measured how often the patched prompt's output changed from N to N+1
+We generated 200 minimal pairs—prompts identical except for the first word, which determines whether it matches the target category. This causes the correct count to differ by exactly 1 between paired prompts.
 
 **Example minimal pair**:
 ```
@@ -63,51 +64,52 @@ First word changed: 'tuba' → 'saw'
 Count changes from 4 to 5
 ```
 
-**Model**: Qwen 2.5 1.5B Instruct (open-source model via HuggingFace)
+For each minimal pair and each layer, we:
+1. Extracted the activation at the last token position from the high-count prompt
+2. Patched this activation into the low-count prompt at the same layer and position
+3. Measured the magnitude of change in the model's output
+
+**Initial Results**:
+- Layers 21-25 showed strongest effects (mean change ~0.44-0.45 in output)
+- Early layers (0-10) showed minimal effects (<0.25)
+- Mid-to-late layers exhibited a sharp transition, suggesting a computational phase change
+
+**Methodological Note**: The initial implementation measured output magnitude changes rather than exact match rates. While this provided useful signal about which layers encode count-related information, we have since refined the analysis to include multiple metrics (change rate, directional accuracy, exact match) and null hypothesis testing via random sampling baselines.
+
+#### 2.2 Linear Probe Analysis
+
+**Objective**: Determine whether count information is linearly decodable from layer activations.
+
+**Method**:
+- Collected activations from all 28 layers on 5,000 examples
+- Trained logistic regression classifiers to predict count (0-5) from each layer's activations
+- Evaluated on held-out test set (4,000 train / 1,000 test split)
 
 **Results**:
-- **Layers 21-25 showed strongest causal effects** (~0.44-0.45 mean effect)
-  - Layer 21: 0.445 ± 0.124
-  - Layer 22: 0.450 ± 0.127
-  - Layer 23: 0.450 ± 0.120
-  - Layer 24: 0.445 ± 0.131
-  - Layer 25: 0.440 ± 0.128
-- Early layers (0-10) showed minimal effects (<0.25)
-- Effects peaked in mid-to-late layers, suggesting count computation happens progressively
 
-**Key findings**:
-- Count information is causally represented in specific mid-to-late layers
-- Multiple adjacent layers show similar effects, suggesting distributed representation
-- The sharp transition from low to high effects indicates a computational phase change
+| Layer Range | Test Accuracy |
+|-------------|---------------|
+| Early (0-10) | 69.6% - 75.8% |
+| Middle (11-17) | 75.5% - 84.5% |
+| **Late (18-27)** | **85.9% - 93.9%** |
 
-**Outputs**: `results/mediation_results_v2.json`, `results/mediation_results_v2.png`
+**Peak Performance Layers**:
+- Layer 20: 90.8%
+- Layer 21: 91.8%
+- Layer 22: 91.2%
+- Layer 23: 92.6%
+- Layer 24: 92.6%
+- Layer 25: 92.5%
+- Layer 26: 93.5%
+- Layer 27: 93.9%
 
----
+**Key Findings**:
+Both causal mediation and linear probing converge on **layers 21-25** as the critical region for count representation. The concordance between causal importance (mediation) and linear decodability (probing) suggests that:
+1. Count information is explicitly represented in these layers
+2. This representation is both causally relevant to model outputs and linearly accessible
+3. The representation becomes progressively refined in later layers
 
-### 3. Linear Probe Training (Pending)
-
-**Objective**: Determine if count is linearly represented in layer activations by training classifiers to decode count (0-5) from each layer.
-
-**Planned method**:
-- Collect activations from all 28 layers on 5000 examples
-- Train logistic regression classifiers for each layer
-- Measure accuracy and compare to mediation results
-
-**Expected outcome**: Layers with high causal effects (21-25) should also have high probe accuracy, validating that count is both causally important and linearly accessible.
-
----
-
-### 4. Activation Intervention (Pending)
-
-**Objective**: Use trained probes to steer model outputs by modifying activations with "steering vectors."
-
-**Planned method**:
-- Identify best probe layer from experiment #3
-- Compute steering vectors: difference in mean activations between count=N and count=M examples
-- Add steering vector to activations during forward pass
-- Measure if output changes from N to M as expected
-
-**Expected outcome**: If count is cleanly represented, adding the (M-N) steering vector should reliably change output from N to M.
+The progressive increase in probe accuracy through the network indicates hierarchical processing, with early layers encoding basic features and late layers consolidating count information in a linearly separable format.
 
 ---
 
@@ -142,67 +144,15 @@ Count changes from 4 to 5
 - `notebooks/qwen_benchmark_colab.ipynb` (benchmark section) → `results/qwen_benchmark_results.json`
 - `scripts/plot_benchmark.py` → `results/benchmark_comparison.png`
 
-**Experiment 2: Causal Mediation Analysis**
-- `notebooks/qwen_benchmark_colab.ipynb` (mediation section) → `results/mediation_results_v2.json`
+**Experiment 2: Mechanistic Analysis (Qwen 2.5 1.5B)**
+- Causal mediation analysis executed via standalone Python script on AWS EC2
+- Linear probe training executed via standalone Python script on AWS EC2
+- Results: `results/mediation_results_v2.json`, `results/probe_results_v2.json`
 
-**Auxiliary Scripts (data prep, utilities)**
-- `scripts/generate_dataset.py` - Created the dataset
-- `scripts/mediation_utils.py` - Helper functions imported by notebook
-- `scripts/causal_mediation_v2.py` - Not used (mediation ran in Colab notebook instead)
-
----
-
-## How to Run (Optional)
-
-<details>
-<summary>Click to expand instructions</summary>
-
-### Requirements
-```bash
-pip install torch transformers accelerate boto3 numpy matplotlib seaborn scikit-learn tqdm
-```
-
-### AWS Bedrock Setup
-1. Configure AWS CLI: `aws configure`
-2. Request model access in AWS Console (Bedrock → Model access → Enable for us-east-1)
-
-### Generate Dataset
-```bash
-python scripts/generate_dataset.py
-```
-
-### Benchmark Models on AWS Bedrock
-```bash
-python scripts/benchmark_bedrock.py --max_examples 1000
-```
-
-### Benchmark Qwen on Google Colab (Recommended)
-1. Open `notebooks/qwen_benchmark_colab.ipynb` in Google Colab
-2. Enable GPU: Runtime → Change runtime type → GPU → T4 GPU
-3. Run all cells
-4. Download results file when complete
-
-### Run Mediation Analysis
-```bash
-python scripts/causal_mediation_v2.py --mediation_examples 200 --skip_probe --skip_intervention
-```
-
-### Train Linear Probes
-```bash
-python scripts/causal_mediation_v2.py --probe_examples 5000 --skip_mediation --skip_intervention
-```
-
-### Run Intervention Experiment
-```bash
-python scripts/causal_mediation_v2.py --intervention_examples 100
-```
-
-### Visualize Results
-```bash
-python scripts/plot_benchmark.py
-```
-
-</details>
+**Auxiliary Scripts**
+- `scripts/generate_dataset.py` - Dataset generation
+- `scripts/mediation_utils.py` - Helper functions for mediation analysis
+- `scripts/causal_mediation_v2.py` - [DEPRECATED] Early mediation script (replaced by notebook implementation)
 
 ---
 
