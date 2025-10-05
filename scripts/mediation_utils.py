@@ -46,21 +46,20 @@ def generate_minimal_pairs(dataset: List[Dict], n_pairs: int = 200, list_length:
 
     pairs = []
 
-    # Filter to only examples with specified list length
-    filtered_dataset = [ex for ex in dataset if len(ex['word_list']) == list_length]
+    print(f"Generating pairs with list_length={list_length}")
 
-    print(f"Filtered to {len(filtered_dataset)} examples with list_length={list_length}")
-    if len(filtered_dataset) == 0:
-        print(f"WARNING: No examples found with list_length={list_length}")
-        print(f"Available lengths: {set(len(ex['word_list']) for ex in dataset[:100])}")
-        return []
-
-    for ex in filtered_dataset:
+    for ex in dataset:
         if len(pairs) >= n_pairs:
             break
 
         category = ex['category']
-        word_list = ex['word_list']
+
+        # Take first list_length words from the example
+        word_list = ex['word_list'][:list_length]
+
+        # Recalculate answer for truncated list
+        correct_count = sum(1 for word in word_list if word in CATEGORIES.get(category, []))
+
         first_word = word_list[0]
 
         # Check if first word matches the category
@@ -68,7 +67,7 @@ def generate_minimal_pairs(dataset: List[Dict], n_pairs: int = 200, list_length:
             # First word matches - swap it with a noise word to decrease count
             new_word = NOISE_WORDS[len(pairs) % len(NOISE_WORDS)]
             new_list = [new_word] + word_list[1:]
-            new_answer = ex['answer'] - 1
+            new_answer = correct_count - 1
 
             pair_low = {
                 'prompt': f"""Count how many words in the list below match the given type.
@@ -91,13 +90,20 @@ Answer: """,
                 'category': category,
                 'answer': new_answer
             }
-            pairs.append((pair_low, ex))
+            # Create pair_high with original list
+            pair_high_dict = {
+                'prompt': ex['prompt'],
+                'word_list': word_list,
+                'category': category,
+                'answer': correct_count
+            }
+            pairs.append((pair_low, pair_high_dict))
 
         else:
             # First word doesn't match - swap it with a category word to increase count
             new_word = CATEGORIES[category][len(pairs) % len(CATEGORIES[category])]
             new_list = [new_word] + word_list[1:]
-            new_answer = ex['answer'] + 1
+            new_answer = correct_count + 1
 
             pair_high = {
                 'prompt': f"""Count how many words in the list below match the given type.
@@ -120,7 +126,14 @@ Answer: """,
                 'category': category,
                 'answer': new_answer
             }
-            pairs.append((ex, pair_high))
+            # Create pair_low with original list
+            pair_low_dict = {
+                'prompt': ex['prompt'],
+                'word_list': word_list,
+                'category': category,
+                'answer': correct_count
+            }
+            pairs.append((pair_low_dict, pair_high))
 
     print(f"Generated {len(pairs)} minimal pairs")
     if len(pairs) > 0:
@@ -280,6 +293,10 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
     pairs = filtered_pairs
 
     # Report baseline immediately
+    if len(pairs) == 0:
+        print("\nERROR: No pairs found after filtering. Cannot proceed.")
+        return {'error': 'No perfect examples found'}
+
     baseline_correct = sum(1 for i in range(len(pairs))
                           if baseline_outputs[i] is not None
                           and baseline_outputs[i] == target_answers[i])
