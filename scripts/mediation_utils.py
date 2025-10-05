@@ -219,7 +219,7 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
         # We're testing the LOW prompt, so target is pair_low['answer']
         target_answers.append(pair_low['answer'])
 
-        # Get baseline (unpatched) output
+        # Get baseline (unpatched) output - greedy decoding
         inputs_low = tokenizer(pair_low['prompt'], return_tensors="pt").to(device)
         with torch.no_grad():
             outputs_baseline = model.generate(
@@ -235,11 +235,34 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
         baseline_answer = extract_answer(baseline_text)
         baseline_outputs.append(baseline_answer)
 
-        # Show ALL examples with word lists
+        # Sample 5 times with temperature=0.7 to measure reliability
+        sampled_answers = []
+        for _ in range(5):
+            with torch.no_grad():
+                outputs_sampled = model.generate(
+                    inputs_low.input_ids,
+                    max_new_tokens=10,
+                    do_sample=True,
+                    temperature=0.7,
+                    pad_token_id=tokenizer.eos_token_id
+                )
+            sampled_text = tokenizer.decode(
+                outputs_sampled[0][inputs_low.input_ids.shape[1]:],
+                skip_special_tokens=True
+            )
+            sampled_answer = extract_answer(sampled_text)
+            sampled_answers.append(sampled_answer)
+
+        # Calculate success rate with sampling
+        correct_samples = sum(1 for ans in sampled_answers if ans == pair_low['answer'])
+        sample_rate = correct_samples / 5
+
+        # Show ALL examples with word lists and sampling stats
         is_correct = baseline_answer == pair_low['answer']
         status = "✓" if is_correct else "✗"
         word_list_str = ' '.join(pair_low['word_list'])
-        print(f"{status} Example {idx+1}: [{word_list_str}] → predicted={baseline_answer}, target={pair_low['answer']}, raw='{baseline_text}'")
+        print(f"{status} Example {idx+1}: [{word_list_str}] → greedy={baseline_answer}, target={pair_low['answer']}, " +
+              f"sampled={sampled_answers}, p(correct)={sample_rate:.1%}")
 
     # Report baseline immediately
     baseline_correct = sum(1 for i in range(len(pairs))
