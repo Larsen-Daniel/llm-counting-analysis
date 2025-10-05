@@ -204,7 +204,8 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
     print("="*80)
 
     for idx, (pair_low, pair_high) in enumerate(tqdm(pairs, desc="Baseline evaluation")):
-        target_answers.append(pair_high['answer'])
+        # We're testing the LOW prompt, so target is pair_low['answer']
+        target_answers.append(pair_low['answer'])
 
         # Get baseline (unpatched) output
         inputs_low = tokenizer(pair_low['prompt'], return_tensors="pt").to(device)
@@ -222,35 +223,16 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
         baseline_answer = extract_answer(baseline_text)
         baseline_outputs.append(baseline_answer)
 
-        # Show first example in detail
-        if idx == 0:
-            print("\n" + "="*80)
-            print("FIRST EXAMPLE PROMPT:")
-            print("="*80)
-            print(pair_low['prompt'])
-            print("\n" + "="*80)
-            print("MODEL RAW OUTPUT:")
-            print("="*80)
-            print(f"'{baseline_text}'")
-            print("\n" + "="*80)
-            print("PARSED RESULT:")
-            print("="*80)
-            print(f"Extracted answer: {baseline_answer}")
-            print(f"Target answer: {pair_high['answer']}")
-            print(f"Correct: {baseline_answer == pair_high['answer']}")
-            print("="*80 + "\n")
+        # Show ALL examples
+        is_correct = baseline_answer == pair_low['answer']
+        status = "✓" if is_correct else "✗"
+        print(f"{status} Example {idx+1}: predicted={baseline_answer}, target={pair_low['answer']}, raw='{baseline_text}'")
 
     # Report baseline immediately
     baseline_correct = sum(1 for i in range(len(pairs))
                           if baseline_outputs[i] is not None
                           and baseline_outputs[i] == target_answers[i])
     baseline_accuracy = baseline_correct / len(pairs)
-
-    # Show sample outputs for debugging
-    print(f"\nSample baseline outputs (first 3):")
-    for i in range(min(3, len(pairs))):
-        print(f"  Example {i+1}: predicted={baseline_outputs[i]}, target={target_answers[i]}, " +
-              f"correct={baseline_outputs[i] == target_answers[i]}")
 
     print(f"\nBaseline accuracy: {baseline_accuracy:.1%} ({baseline_correct}/{len(pairs)})")
     print("="*80 + "\n")
@@ -316,12 +298,13 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
         for i in range(len(pairs)):
             baseline = baseline_outputs[i]
             patched = layer_outputs[layer_idx][i]
-            target = target_answers[i]
+            baseline_target = target_answers[i]  # pair_low answer
+            patch_target = baseline_target + 1  # pair_high answer (always +1)
 
             if baseline is not None and patched is not None:
                 changed.append(1 if patched != baseline else 0)
-                directional.append(1 if patched == target else 0)
-                exact.append(1 if patched == target else 0)
+                directional.append(1 if patched == patch_target else 0)
+                exact.append(1 if patched == patch_target else 0)
                 magnitude.append(abs(patched - baseline))
             else:
                 changed.append(0)
