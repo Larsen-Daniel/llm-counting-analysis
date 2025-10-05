@@ -61,11 +61,19 @@ def patch_and_generate(model, tokenizer, prompt: str, patch_activations: torch.T
     """Generate with patched activations."""
 
     def patching_hook(module, input, output):
+        # Handle both tuple output and direct tensor output
+        if isinstance(output, tuple):
+            hidden_states = output[0]
+        else:
+            hidden_states = output
+
         # Only patch if the position exists in the current activation
-        curr_seq_len = output[0].shape[1]
-        if patch_pos < curr_seq_len:
-            output[0][:, patch_pos, :] = patch_activations[layer_idx][:, patch_pos, :].to(device)
-        return output
+        if len(hidden_states.shape) == 3 and patch_pos < hidden_states.shape[1]:
+            hidden_states[:, patch_pos, :] = patch_activations[layer_idx][:, patch_pos, :].to(device)
+
+        if isinstance(output, tuple):
+            return (hidden_states,) + output[1:]
+        return hidden_states
 
     layer = model.model.layers[layer_idx]
     handle = layer.register_forward_hook(patching_hook)

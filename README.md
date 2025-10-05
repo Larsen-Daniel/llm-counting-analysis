@@ -13,25 +13,29 @@ Mechanistic interpretability experiments investigating how language models inter
 - 0-5 matching items per list (balanced distribution)
 - Clear prompt format requesting answer in parentheses: `(N)`
 
-**Models tested**:
-- AWS Bedrock: Llama 3.1 70B Instruct, Llama 3.1 8B Instruct, Claude 3.5 Haiku, Mistral 7B Instruct
-- HuggingFace (via Google Colab): Qwen 2.5 3B Instruct
+**Models tested**: We initially benchmarked using AWS Bedrock for API access. To perform mechanistic interpretability experiments requiring model weights, we needed to run models locally. Memory constraints on EC2 led us to downsize to Qwen 2.5 3B, which could run comfortably on Google Colab's T4 GPU.
+
+- **AWS Bedrock**: Llama 3.1 70B Instruct, Llama 3.1 8B Instruct, Claude 3.5 Haiku, Mistral 7B Instruct
+- **Google Colab**: Qwen 2.5 3B Instruct
 
 **Results**:
+
+![Benchmark Results](results/benchmark_comparison.png)
+
 | Model | Accuracy | Parse Errors | Numerical Errors |
 |-------|----------|--------------|------------------|
 | Llama 3.1 70B | **78.2%** | 0.0% | 21.8% |
 | Claude 3.5 Haiku | 57.8% | 0.0% | 42.2% |
 | Mistral 7B | 49.6% | 0.3% | 50.1% |
+| Qwen 2.5 3B | 35.2% | 0.0% | 64.8% |
 | Llama 3.1 8B | 34.9% | 0.0% | 65.1% |
 
 **Key findings**:
 - All models successfully learned the output format (`(N)`) with minimal parse errors
 - Accuracy scales strongly with model size (70B vs 8B shows 2.2x improvement)
+- Qwen 2.5 3B performs comparably to Llama 3.1 8B despite being smaller
 - Even on this simple task, smaller models struggle significantly
 - Lenient parsing (accepting any number in parentheses or first number) was critical for fair evaluation
-
-**Outputs**: `results/benchmark_results_bedrock.json`, `results/benchmark_results_bedrock.png`
 
 ---
 
