@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple
 import json
 from tqdm import tqdm
 import re
+from scipy import stats
 
 def extract_answer(text: str) -> int | None:
     """Extract numerical answer from model output."""
@@ -162,14 +163,43 @@ def patch_and_generate(model, tokenizer, prompt: str, patch_activation: torch.Te
         handle.remove()
 
 def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], device: str) -> Dict:
-    """Run causal mediation analysis across all layers."""
+    """Run causal mediation analysis across all layers.
+
+    Tracks three metrics per layer:
+    1. changed: Whether the patch changed the answer at all
+    2. directional: Whether it changed toward the target count
+    3. exact: Whether it matched the target count exactly
+
+    Also includes null hypothesis baseline (random sampling instead of patching).
+    """
 
     n_layers = len(model.model.layers)
-    layer_effects = {i: [] for i in range(n_layers)}
+    layer_metrics = {
+        i: {'changed': [], 'directional': [], 'exact': [], 'magnitude': []}
+        for i in range(n_layers)
+    }
+
+    # Null hypothesis: generate with different random seed (temperature sampling)
+    null_metrics = {'changed': [], 'directional': [], 'exact': [], 'magnitude': []}
 
     # Process one layer at a time to save memory
     for layer_idx in tqdm(range(n_layers), desc="Processing layers"):
-        for pair_low, pair_high in pairs:
+        for pair_idx, (pair_low, pair_high) in enumerate(pairs):
+            # Get original (unpatched) answer first
+            inputs_low = tokenizer(pair_low['prompt'], return_tensors="pt").to(device)
+            with torch.no_grad():
+                outputs_original = model.generate(
+                    inputs_low.input_ids,
+                    max_new_tokens=10,
+                    do_sample=False,
+                    pad_token_id=tokenizer.eos_token_id
+                )
+            original_text = tokenizer.decode(
+                outputs_original[0][inputs_low.input_ids.shape[1]:],
+                skip_special_tokens=True
+            )
+            original_answer = extract_answer(original_text)
+
             # Extract only the activation for this specific layer
             inputs_high = tokenizer(pair_high['prompt'], return_tensors="pt").to(device)
 
@@ -186,7 +216,6 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
             del outputs_high
             torch.cuda.empty_cache()
 
-            inputs_low = tokenizer(pair_low['prompt'], return_tensors="pt")
             seq_len = inputs_low.input_ids.shape[1]
             last_pos = seq_len - 1
 
@@ -205,10 +234,55 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
 
             predicted = extract_answer(generated)
 
-            if predicted == pair_high['answer']:
-                layer_effects[layer_idx].append(1)
+            # Null hypothesis baseline: generate with temperature sampling (only once per pair, on layer 0)
+            if layer_idx == 0:
+                with torch.no_grad():
+                    outputs_null = model.generate(
+                        inputs_low.input_ids,
+                        max_new_tokens=10,
+                        do_sample=True,
+                        temperature=0.7,
+                        pad_token_id=tokenizer.eos_token_id
+                    )
+                null_text = tokenizer.decode(
+                    outputs_null[0][inputs_low.input_ids.shape[1]:],
+                    skip_special_tokens=True
+                )
+                null_answer = extract_answer(null_text)
+
+                if null_answer is not None and original_answer is not None:
+                    null_metrics['changed'].append(1 if null_answer != original_answer else 0)
+                    null_metrics['directional'].append(1 if null_answer == pair_high['answer'] else 0)
+                    null_metrics['exact'].append(1 if null_answer == pair_high['answer'] else 0)
+                    null_metrics['magnitude'].append(abs(null_answer - original_answer))
+                else:
+                    null_metrics['changed'].append(0)
+                    null_metrics['directional'].append(0)
+                    null_metrics['exact'].append(0)
+                    null_metrics['magnitude'].append(0)
+
+            # Track three metrics for this layer
+            if predicted is not None and original_answer is not None:
+                # Metric 1: Did the answer change at all?
+                did_change = (predicted != original_answer)
+                layer_metrics[layer_idx]['changed'].append(1 if did_change else 0)
+
+                # Metric 2: Did it change toward the target (exact match)?
+                directional_correct = (predicted == pair_high['answer'])
+                layer_metrics[layer_idx]['directional'].append(1 if directional_correct else 0)
+
+                # Metric 3: Exact match (same as directional for this task)
+                layer_metrics[layer_idx]['exact'].append(1 if directional_correct else 0)
+
+                # Metric 4: Magnitude of change
+                magnitude = abs(predicted - original_answer)
+                layer_metrics[layer_idx]['magnitude'].append(magnitude)
             else:
-                layer_effects[layer_idx].append(0)
+                # If we couldn't parse answers, record as failure
+                layer_metrics[layer_idx]['changed'].append(0)
+                layer_metrics[layer_idx]['directional'].append(0)
+                layer_metrics[layer_idx]['exact'].append(0)
+                layer_metrics[layer_idx]['magnitude'].append(0)
 
             # Clear activation
             del activation_high_full
@@ -216,16 +290,48 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
 
     results = {
         'layer_effects': {},
+        'null_hypothesis': {},
         'model_name': model.config._name_or_path,
         'n_pairs': len(pairs)
     }
 
+    # Add null hypothesis baseline
+    results['null_hypothesis'] = {
+        'changed_rate': float(np.mean(null_metrics['changed'])),
+        'directional_accuracy': float(np.mean(null_metrics['directional'])),
+        'exact_match_rate': float(np.mean(null_metrics['exact'])),
+        'mean_magnitude': float(np.mean(null_metrics['magnitude'])),
+        'std_magnitude': float(np.std(null_metrics['magnitude'])),
+        'n_exact_matches': int(sum(null_metrics['exact']))
+    }
+
+    # Add per-layer results with statistical comparison to null
     for layer_idx in range(n_layers):
-        effects = layer_effects[layer_idx]
+        metrics = layer_metrics[layer_idx]
+
+        # Calculate p-value using binomial test for directional accuracy
+        null_mean = results['null_hypothesis']['directional_accuracy']
+        layer_mean = float(np.mean(metrics['directional']))
+
+        # Simple binomial test: is this layer better than null baseline?
+        n_successes = sum(metrics['directional'])
+        n_total = len(metrics['directional'])
+
+        # Two-tailed binomial test against null hypothesis proportion
+        if null_mean > 0:
+            p_value = stats.binom_test(n_successes, n_total, null_mean, alternative='two-sided')
+        else:
+            p_value = 1.0
+
         results['layer_effects'][str(layer_idx)] = {
-            'mean_effect': float(np.mean(effects)),
-            'std_effect': float(np.std(effects)),
-            'n_successes': int(sum(effects))
+            'changed_rate': float(np.mean(metrics['changed'])),
+            'directional_accuracy': float(np.mean(metrics['directional'])),
+            'exact_match_rate': float(np.mean(metrics['exact'])),
+            'mean_magnitude': float(np.mean(metrics['magnitude'])),
+            'std_magnitude': float(np.std(metrics['magnitude'])),
+            'n_exact_matches': int(sum(metrics['exact'])),
+            'p_value_vs_null': float(p_value),
+            'better_than_null': layer_mean > null_mean
         }
 
     return results
