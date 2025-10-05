@@ -112,28 +112,22 @@ def patch_and_generate(model, tokenizer, prompt: str, patch_activations: torch.T
                        layer_idx: int, patch_pos: int, device: str) -> str:
     """Generate with patched activations - only patches the initial forward pass."""
 
-    # Track whether we've done the initial forward pass
-    patched = {'done': False}
-
     def patching_hook(module, input, output):
-        # Only patch on the FIRST forward pass (the prompt), not during generation
-        if patched['done']:
-            return output
-
         # Handle both tuple output and direct tensor output
         if isinstance(output, tuple):
-            hidden_states = output[0].clone()
+            hidden_states = output[0]
+            # Only patch if this is the initial forward pass (full sequence length)
+            if hidden_states.shape[1] > patch_pos:
+                hidden_states = hidden_states.clone()
+                hidden_states[:, patch_pos, :] = patch_activations[layer_idx][:, patch_pos, :].to(device)
+                return (hidden_states,) + output[1:]
+            return output
         else:
-            hidden_states = output.clone()
-
-        # Only patch if the position exists in the current activation
-        if len(hidden_states.shape) == 3 and patch_pos < hidden_states.shape[1]:
-            hidden_states[:, patch_pos, :] = patch_activations[layer_idx][:, patch_pos, :].to(device)
-            patched['done'] = True  # Mark that we've patched
-
-        if isinstance(output, tuple):
-            return (hidden_states,) + output[1:]
-        return hidden_states
+            # Only patch if this is the initial forward pass (full sequence length)
+            if output.shape[1] > patch_pos:
+                output = output.clone()
+                output[:, patch_pos, :] = patch_activations[layer_idx][:, patch_pos, :].to(device)
+            return output
 
     layer = model.model.layers[layer_idx]
     handle = layer.register_forward_hook(patching_hook)
