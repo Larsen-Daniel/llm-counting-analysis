@@ -202,7 +202,8 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
     print("\n" + "="*80)
     print("BENCHMARKING BASELINE (unpatched model)")
     print("="*80)
-    for pair_low, pair_high in tqdm(pairs, desc="Baseline evaluation"):
+
+    for idx, (pair_low, pair_high) in enumerate(tqdm(pairs, desc="Baseline evaluation")):
         target_answers.append(pair_high['answer'])
 
         # Get baseline (unpatched) output
@@ -220,6 +221,24 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
         )
         baseline_answer = extract_answer(baseline_text)
         baseline_outputs.append(baseline_answer)
+
+        # Show first example in detail
+        if idx == 0:
+            print("\n" + "="*80)
+            print("FIRST EXAMPLE PROMPT:")
+            print("="*80)
+            print(pair_low['prompt'])
+            print("\n" + "="*80)
+            print("MODEL RAW OUTPUT:")
+            print("="*80)
+            print(f"'{baseline_text}'")
+            print("\n" + "="*80)
+            print("PARSED RESULT:")
+            print("="*80)
+            print(f"Extracted answer: {baseline_answer}")
+            print(f"Target answer: {pair_high['answer']}")
+            print(f"Correct: {baseline_answer == pair_high['answer']}")
+            print("="*80 + "\n")
 
     # Report baseline immediately
     baseline_correct = sum(1 for i in range(len(pairs))
