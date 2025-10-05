@@ -61,7 +61,10 @@ def patch_and_generate(model, tokenizer, prompt: str, patch_activations: torch.T
     """Generate with patched activations."""
 
     def patching_hook(module, input, output):
-        output[0][:, patch_pos, :] = patch_activations[layer_idx][:, patch_pos, :].to(device)
+        # Only patch if the position exists in the current activation
+        curr_seq_len = output[0].shape[1]
+        if patch_pos < curr_seq_len:
+            output[0][:, patch_pos, :] = patch_activations[layer_idx][:, patch_pos, :].to(device)
         return output
 
     layer = model.model.layers[layer_idx]
