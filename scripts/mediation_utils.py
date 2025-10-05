@@ -319,7 +319,7 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
 
         # Two-tailed binomial test against null hypothesis proportion
         if null_mean > 0:
-            p_value = stats.binom_test(n_successes, n_total, null_mean, alternative='two-sided')
+            p_value = stats.binomtest(n_successes, n_total, null_mean, alternative='two-sided').pvalue
         else:
             p_value = 1.0
 
