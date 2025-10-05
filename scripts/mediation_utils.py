@@ -76,9 +76,15 @@ def generate_minimal_pairs(dataset: List[Dict], n_pairs: int = 200, list_length:
 Type: {category}
 List: {' '.join(new_list)}
 
-YOU MUST respond with ONLY a number in parentheses, like this: (5)
-Do NOT include any other text, explanations, or words.
-Just output the number in parentheses and nothing else.
+IMPORTANT: Respond with ONLY a number in parentheses. Nothing else.
+
+Example:
+Type: fruit
+List: apple door banana cloud
+Answer: (2)
+
+Do NOT write "2 (2)" or "The answer is (2)" or any other text.
+ONLY write: (N)
 
 Answer: """,
                 'word_list': new_list,
@@ -99,9 +105,15 @@ Answer: """,
 Type: {category}
 List: {' '.join(new_list)}
 
-YOU MUST respond with ONLY a number in parentheses, like this: (5)
-Do NOT include any other text, explanations, or words.
-Just output the number in parentheses and nothing else.
+IMPORTANT: Respond with ONLY a number in parentheses. Nothing else.
+
+Example:
+Type: fruit
+List: apple door banana cloud
+Answer: (2)
+
+Do NOT write "2 (2)" or "The answer is (2)" or any other text.
+ONLY write: (N)
 
 Answer: """,
                 'word_list': new_list,
@@ -223,10 +235,11 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
         baseline_answer = extract_answer(baseline_text)
         baseline_outputs.append(baseline_answer)
 
-        # Show ALL examples
+        # Show ALL examples with word lists
         is_correct = baseline_answer == pair_low['answer']
         status = "✓" if is_correct else "✗"
-        print(f"{status} Example {idx+1}: predicted={baseline_answer}, target={pair_low['answer']}, raw='{baseline_text}'")
+        word_list_str = ' '.join(pair_low['word_list'])
+        print(f"{status} Example {idx+1}: [{word_list_str}] → predicted={baseline_answer}, target={pair_low['answer']}, raw='{baseline_text}'")
 
     # Report baseline immediately
     baseline_correct = sum(1 for i in range(len(pairs))
