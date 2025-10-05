@@ -111,23 +111,44 @@ Count changes from 4 to 5
 
 ---
 
-## Repository Contents
+## Repository Structure
 
-**Core scripts**:
-- `generate_dataset.py` - Generate balanced counting task dataset
-- `benchmark_bedrock.py` - Benchmark models on AWS Bedrock
-- `qwen_benchmark_colab.ipynb` - **Google Colab notebook to benchmark Qwen 2.5 3B** (recommended for easy GPU access)
-- `causal_mediation_v2.py` - Run mediation analysis, probe training, and intervention experiments
-- `plot_mediation.py` - Generate visualization of mediation results
+```
+├── data/
+│   └── counting_dataset.jsonl     # 5000 examples for all experiments
+│
+├── results/                        # All final outputs
+│   ├── benchmark_results_bedrock.json    # Bedrock benchmarking results
+│   ├── qwen_benchmark_results.json       # Qwen 3B benchmarking results
+│   ├── benchmark_comparison.png          # Combined benchmark visualization
+│   ├── mediation_results_v2.json         # Causal mediation results
+│   └── mediation_results_v2.png          # Mediation visualization
+│
+├── notebooks/
+│   └── qwen_benchmark_colab.ipynb # Colab notebook (runs benchmarking + mediation)
+│
+└── scripts/
+    ├── generate_dataset.py        # [AUXILIARY] Creates counting_dataset.jsonl
+    ├── benchmark_bedrock.py       # [MAIN] Bedrock benchmarking
+    ├── plot_benchmark.py          # [AUXILIARY] Creates benchmark_comparison.png
+    ├── mediation_utils.py         # [AUXILIARY] Helper functions for mediation
+    └── causal_mediation_v2.py     # [NOT USED - see notebook instead]
+```
 
-**Data**:
-- `counting_dataset.jsonl` - 5000 examples (5-10 words, 0-5 matches, balanced)
+### Scripts Used for Final Results
 
-**Results** (in `results/` folder):
-- `benchmark_results_bedrock.json` - Full benchmark data for 4 models
-- `benchmark_results_bedrock.png` - Bar charts comparing accuracy and parse errors
-- `mediation_results_v2.json` - Layer-wise causal effects from activation patching
-- `mediation_results_v2.png` - Visualization showing layers 21-25 with highest effects
+**Experiment 1: Model Benchmarking**
+- `scripts/benchmark_bedrock.py` → `results/benchmark_results_bedrock.json`
+- `notebooks/qwen_benchmark_colab.ipynb` (benchmark section) → `results/qwen_benchmark_results.json`
+- `scripts/plot_benchmark.py` → `results/benchmark_comparison.png`
+
+**Experiment 2: Causal Mediation Analysis**
+- `notebooks/qwen_benchmark_colab.ipynb` (mediation section) → `results/mediation_results_v2.json`
+
+**Auxiliary Scripts (data prep, utilities)**
+- `scripts/generate_dataset.py` - Created the dataset
+- `scripts/mediation_utils.py` - Helper functions imported by notebook
+- `scripts/causal_mediation_v2.py` - Not used (mediation ran in Colab notebook instead)
 
 ---
 
@@ -147,38 +168,38 @@ pip install torch transformers accelerate boto3 numpy matplotlib seaborn scikit-
 
 ### Generate Dataset
 ```bash
-python generate_dataset.py
+python scripts/generate_dataset.py
 ```
 
 ### Benchmark Models on AWS Bedrock
 ```bash
-python benchmark_bedrock.py --max_examples 1000
+python scripts/benchmark_bedrock.py --max_examples 1000
 ```
 
 ### Benchmark Qwen on Google Colab (Recommended)
-1. Open `qwen_benchmark_colab.ipynb` in Google Colab
+1. Open `notebooks/qwen_benchmark_colab.ipynb` in Google Colab
 2. Enable GPU: Runtime → Change runtime type → GPU → T4 GPU
 3. Run all cells
 4. Download results file when complete
 
 ### Run Mediation Analysis
 ```bash
-python causal_mediation_v2.py --mediation_examples 200 --skip_probe --skip_intervention
+python scripts/causal_mediation_v2.py --mediation_examples 200 --skip_probe --skip_intervention
 ```
 
 ### Train Linear Probes
 ```bash
-python causal_mediation_v2.py --probe_examples 5000 --skip_mediation --skip_intervention
+python scripts/causal_mediation_v2.py --probe_examples 5000 --skip_mediation --skip_intervention
 ```
 
 ### Run Intervention Experiment
 ```bash
-python causal_mediation_v2.py --intervention_examples 100
+python scripts/causal_mediation_v2.py --intervention_examples 100
 ```
 
 ### Visualize Results
 ```bash
-python plot_mediation.py
+python scripts/plot_benchmark.py
 ```
 
 </details>

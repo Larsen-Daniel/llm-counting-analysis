@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load Bedrock results
-with open('results/benchmark_results_bedrock.json', 'r') as f:
+with open('../results/benchmark_results_bedrock.json', 'r') as f:
     bedrock_data = json.load(f)
 
 # Load Qwen results
-with open('results/qwen_benchmark_results.json', 'r') as f:
+with open('../results/qwen_benchmark_results.json', 'r') as f:
     qwen_data = json.load(f)
 
 # Prepare data
@@ -74,5 +74,5 @@ legend_elements = [
 fig.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, 0.98), ncol=2, fontsize=10)
 
 plt.tight_layout(rect=[0, 0, 1, 0.96])
-plt.savefig('results/benchmark_comparison.png', dpi=300, bbox_inches='tight')
-print("Saved to results/benchmark_comparison.png")
+plt.savefig('../results/benchmark_comparison.png', dpi=300, bbox_inches='tight')
+print("Saved to ../results/benchmark_comparison.png")

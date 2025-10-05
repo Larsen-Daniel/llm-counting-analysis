@@ -55,7 +55,16 @@ def generate_minimal_pairs(dataset: List[Dict], n_pairs: int = 200) -> List[Tupl
             new_answer = ex['answer'] - 1
 
             pair_low = {
-                'prompt': f"Count how many {category} are in this list: {', '.join(new_list)}. Answer with just the number in parentheses like (N).",
+                'prompt': f"""Count how many words in the list below match the given type.
+
+Type: {category}
+List: {' '.join(new_list)}
+
+YOU MUST respond with ONLY a number in parentheses, like this: (5)
+Do NOT include any other text, explanations, or words.
+Just output the number in parentheses and nothing else.
+
+Answer: """,
                 'word_list': new_list,
                 'category': category,
                 'answer': new_answer
@@ -69,7 +78,16 @@ def generate_minimal_pairs(dataset: List[Dict], n_pairs: int = 200) -> List[Tupl
             new_answer = ex['answer'] + 1
 
             pair_high = {
-                'prompt': f"Count how many {category} are in this list: {', '.join(new_list)}. Answer with just the number in parentheses like (N).",
+                'prompt': f"""Count how many words in the list below match the given type.
+
+Type: {category}
+List: {' '.join(new_list)}
+
+YOU MUST respond with ONLY a number in parentheses, like this: (5)
+Do NOT include any other text, explanations, or words.
+Just output the number in parentheses and nothing else.
+
+Answer: """,
                 'word_list': new_list,
                 'category': category,
                 'answer': new_answer
@@ -92,18 +110,26 @@ def extract_activations(model, tokenizer, prompt: str, device: str) -> List[torc
 
 def patch_and_generate(model, tokenizer, prompt: str, patch_activations: torch.Tensor,
                        layer_idx: int, patch_pos: int, device: str) -> str:
-    """Generate with patched activations."""
+    """Generate with patched activations - only patches the initial forward pass."""
+
+    # Track whether we've done the initial forward pass
+    patched = {'done': False}
 
     def patching_hook(module, input, output):
+        # Only patch on the FIRST forward pass (the prompt), not during generation
+        if patched['done']:
+            return output
+
         # Handle both tuple output and direct tensor output
         if isinstance(output, tuple):
-            hidden_states = output[0]
+            hidden_states = output[0].clone()
         else:
-            hidden_states = output
+            hidden_states = output.clone()
 
         # Only patch if the position exists in the current activation
         if len(hidden_states.shape) == 3 and patch_pos < hidden_states.shape[1]:
             hidden_states[:, patch_pos, :] = patch_activations[layer_idx][:, patch_pos, :].to(device)
+            patched['done'] = True  # Mark that we've patched
 
         if isinstance(output, tuple):
             return (hidden_states,) + output[1:]
