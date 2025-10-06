@@ -132,6 +132,32 @@ The progressive increase in probe accuracy through the network indicates hierarc
 
 ---
 
+## Conclusion
+
+This task is harder than it might initially seem. While counting 2-3 items in a 4-word list appears simple, language models typically solve such tasks using chain-of-thought reasoning tokens. Our results show a clear trend: larger models perform substantially better (Llama 3.1 70B: 78.2% vs Qwen 2.5 1.5B: ~35%).
+
+For practical reasons, activation patching experiments are much easier to run on smaller models that fit on consumer GPUs. However, given that these models perform poorly on the base task, we shouldn't expect their activations to have extremely strong correlations to the ground truth.
+
+### Convergent Evidence for Late-Layer Processing
+
+Despite these limitations, we found convergent evidence across two methods:
+
+**Activation Patching**: Both the magnitude of output change and directional accuracy peaked in the final quartile of layers (18-27). Mean effects rose from 0.34 (layer 16-17) to 0.43-0.45 (layers 18-27), with directional accuracy reaching 20-23% compared to ~11% in early layers.
+
+**Linear Probing**: Test accuracy improved progressively through the network, from 69.6% (layer 0) to 93.9% (layer 27), with layers 20-27 achieving 90.8-93.9% accuracy. This suggests count information becomes increasingly explicit and linearly accessible in later layers.
+
+### The Puzzle of Strong Probing vs Weak Patching
+
+Notably, linear probing was far more effective than activation patching. While probes achieved >90% accuracy on late layers, activation patching only shifted outputs in the correct direction 20-23% of the time. This large gap suggests:
+
+1. **A count-related concept exists** and is linearly decodable from activations
+2. **Single-token patching is insufficient** to reliably steer model behavior
+3. **The representation may be distributed** across multiple positions or require broader intervention
+
+The fact that even layer 0 (embeddings) achieved 69.6% probe accuracy raises questions about whether probes learn statistical patterns independent of the model's computation. However, the progressive improvement through layers (69.6% → 93.9%) indicates that later layers do refine count representations in ways the model uses, even if our patching intervention cannot fully leverage them.
+
+---
+
 ## Repository Structure
 
 ```
