@@ -35,22 +35,22 @@ Mechanistic interpretability experiments investigating how language models inter
 - Accuracy scales strongly with model size (70B vs 8B shows 2.2x improvement)
 - Qwen 2.5 3B performs comparably to Llama 3.1 8B despite being smaller
 - Even on this simple task, smaller models struggle significantly
-- Lenient parsing (accepting any number in parentheses or first number) was critical for fair evaluation
+- Lenient parsing (accepting any number in parentheses or first number) was critical for fair evaluation (initial parsing error rates could in some cases exceed the rate of numerical errors)
 
 ---
 
-### 2. Mechanistic Analysis on Qwen 2.5 1.5B Instruct
+### 2. Causal Mediation Analysis
 
-To investigate the internal representation of counting, we conducted two complementary experiments on Qwen 2.5 1.5B Instruct: causal mediation analysis and linear probing.
+To investigate which transformer layers causally mediate count information, we conducted activation patching experiments on Qwen models.
 
-#### 2.1 Causal Mediation Analysis via Activation Patching
+#### 2.1 Preliminary Investigation: Qwen 2.5 1.5B Instruct
 
 **Objective**: Identify which transformer layers causally mediate count information by intervening on activations.
 
 **Method**:
-We generated minimal pairs—prompts identical except for the first word, which determines whether it matches the target category. This causes the correct count to differ by exactly 1 between paired prompts.
+We generated pairs of lists identical except for the first word, which in one case was in the target category and in one case was not. This causes the correct count to differ by exactly 1 between the two lists.
 
-**Example minimal pair**:
+**Example pair**:
 ```
 Low count (2 tools):
 Type: tool
@@ -75,11 +75,11 @@ Layers 22-27: Continue forward pass with the patched activation
 Generation:   Produce the answer
 ```
 
-This is fundamentally different from just running the high-count prompt because:
+There are a number of reasons why this is different from just running the high-count prompt:
 1. **Early layers (0-20)** still processed the original low-count tokens
-2. **Residual connections** carry information from early layers forward through skip connections
-3. **Attention KV cache** retains keys/values from the low-count tokens when generating
-4. We're testing if layer 21's representation of "3 tools" can **override** layers 0-20's computation of "2 tools"
+2. **Residual connections** from earlier layers carry information forward that only processed the original low-count tokens
+3. In **attention layers**, the **KV cache** retains keys and values from the low-count tokens
+4. We're testing whether these mechanisms can be overridden by one layer's representation of "3 tools"
 
 If patching layer 21 successfully changes the output from 2→3, this indicates that layer 21 **causally mediates** the count information—it's both necessary and sufficient to shift the model's answer.
 
@@ -95,7 +95,32 @@ For each minimal pair and each layer, we:
 
 **Methodological Note**: The initial implementation measured output magnitude changes rather than exact match rates. While this provided useful signal about which layers encode count-related information, we have since refined the analysis to include multiple metrics (change rate, directional accuracy, exact match) and null hypothesis testing via random sampling baselines.
 
-#### 2.2 Linear Probe Analysis
+#### 2.2 Main Experiment: Qwen 2.5 3B Instruct
+
+Building on the preliminary findings, we conducted a larger-scale mediation analysis on Qwen 2.5 3B Instruct using 20 perfect pairs (pairs where the model achieved 100% accuracy with both greedy and temperature sampling).
+
+**Results**:
+
+| Layer Range | Mean Effect | Exact Match Rate |
+|-------------|-------------|------------------|
+| Early (0-14) | 0.10-0.25 | 10-25% |
+| Mid (15-20) | 0.40-0.60 | 40-50% |
+| **Late (21-35)** | **0.60-0.90** | **50-65%** |
+
+**Top Performing Layers**:
+- Layer 28: 0.90 mean effect, 60% exact match
+- Layer 31: 0.80 mean effect, 60% exact match
+- Layer 24: 0.65 mean effect, **65% exact match** (highest)
+- Layer 21: 0.70 mean effect, 50% exact match
+
+**Key Findings**:
+The 3B model shows **substantially stronger causal effects** than the 1.5B model, with exact match rates of 50-65% in late layers (vs. 20-23% in 1.5B). This suggests that larger models develop more interpretable and causally effective count representations. The final layers (28-35) show the strongest intervention effects, indicating that count information becomes increasingly consolidated and causally potent as it moves through the network.
+
+---
+
+### 3. Linear Probe Analysis
+
+To supplement our understanding of the representation of the count, we trained linear probes on Qwen 2.5 1.5B Instruct.
 
 **Objective**: Determine whether count information is linearly decodable from layer activations.
 
@@ -123,12 +148,7 @@ For each minimal pair and each layer, we:
 - Layer 27: 93.9%
 
 **Key Findings**:
-Both causal mediation and linear probing converge on **layers 21-25** as the critical region for count representation. The concordance between causal importance (mediation) and linear decodability (probing) suggests that:
-1. Count information is explicitly represented in these layers
-2. This representation is both causally relevant to model outputs and linearly accessible
-3. The representation becomes progressively refined in later layers
-
-The progressive increase in probe accuracy through the network indicates hierarchical processing, with early layers encoding basic features and late layers consolidating count information in a linearly separable format.
+The progressive increase in probe accuracy through the network (69.6% → 93.9%) indicates hierarchical processing, with early layers encoding basic features and late layers consolidating count information in a linearly separable format. The concordance with causal mediation results suggests that layers 21-27 both contain linearly accessible count representations and causally mediate the model's counting behavior.
 
 ---
 
