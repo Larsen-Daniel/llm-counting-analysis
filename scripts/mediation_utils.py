@@ -258,6 +258,12 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
         )
         baseline_answer = extract_answer(baseline_text)
 
+        # Skip if greedy doesn't match target (no point sampling)
+        if baseline_answer != pair_low['answer']:
+            word_list_str = ' '.join(pair_low['word_list'])
+            print(f"✗  Test {tested_count} ({pair_low['category']}): [{word_list_str}] → greedy={baseline_answer}, target={pair_low['answer']} - SKIP")
+            continue
+
         # Sample 4 times with temperature=0.7 to measure reliability
         sampled_answers = []
         for _ in range(4):
@@ -283,7 +289,7 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
         # Show result
         status = "✓✓" if is_perfect else "✗ "
         word_list_str = ' '.join(pair_low['word_list'])
-        print(f"{status} Test {tested_count}: [{word_list_str}] → greedy={baseline_answer}, target={pair_low['answer']}, " +
+        print(f"{status} Test {tested_count} ({pair_low['category']}): [{word_list_str}] → greedy={baseline_answer}, target={pair_low['answer']}, " +
               f"sampled={sampled_answers}, p={correct_samples}/4")
 
         if is_perfect:
