@@ -48,26 +48,45 @@ To investigate the internal representation of counting, we conducted two complem
 **Objective**: Identify which transformer layers causally mediate count information by intervening on activations.
 
 **Method**:
-We generated 200 minimal pairs—prompts identical except for the first word, which determines whether it matches the target category. This causes the correct count to differ by exactly 1 between paired prompts.
+We generated minimal pairs—prompts identical except for the first word, which determines whether it matches the target category. This causes the correct count to differ by exactly 1 between paired prompts.
 
 **Example minimal pair**:
 ```
-Low count (4 tools):
+Low count (2 tools):
 Type: tool
-List: tuba tennis ruler clamp motorcycle indigo tape document hammer
+List: cloud wrench door saw
 
-High count (5 tools):
+High count (3 tools):
 Type: tool
-List: saw tennis ruler clamp motorcycle indigo tape document hammer
+List: hammer wrench door saw
 
-First word changed: 'tuba' → 'saw'
-Count changes from 4 to 5
+First word changed: 'cloud' → 'hammer'
+Count changes from 2 to 3
 ```
 
+**How Activation Patching Works**:
+
+The key insight is that we patch **only one layer at a time**, not the entire forward pass:
+
+```
+Layers 0-20:  Process "cloud wrench door saw" (low-count prompt)
+Layer 21:     PATCH! Replace activation with one from "hammer wrench door saw" (high-count prompt)
+Layers 22-27: Continue forward pass with the patched activation
+Generation:   Produce the answer
+```
+
+This is fundamentally different from just running the high-count prompt because:
+1. **Early layers (0-20)** still processed the original low-count tokens
+2. **Residual connections** carry information from early layers forward through skip connections
+3. **Attention KV cache** retains keys/values from the low-count tokens when generating
+4. We're testing if layer 21's representation of "3 tools" can **override** layers 0-20's computation of "2 tools"
+
+If patching layer 21 successfully changes the output from 2→3, this indicates that layer 21 **causally mediates** the count information—it's both necessary and sufficient to shift the model's answer.
+
 For each minimal pair and each layer, we:
-1. Extracted the activation at the last token position from the high-count prompt
-2. Patched this activation into the low-count prompt at the same layer and position
-3. Measured the magnitude of change in the model's output
+1. Extract the activation at the last token position from the high-count prompt
+2. Patch this activation into the low-count prompt at the same layer and position
+3. Measure the magnitude of change in the model's output
 
 **Initial Results**:
 - Layers 21-25 showed strongest effects (mean change ~0.44-0.45 in output)
