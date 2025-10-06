@@ -8,13 +8,35 @@ from scipy import stats
 import random
 
 def generate_simple_pairs(n_pairs: int = 500) -> List[Tuple[Dict, Dict]]:
-    """Generate simple 4-word lists with ~2 matching items (1-3 range)."""
+    """Generate pairs matching dataset format: 8-10 word lists with 2-3 matching items."""
+    # Use exact vocabulary from dataset (generate_dataset.py)
     CATEGORIES = {
-        "fruit": ["apple", "banana", "cherry", "grape", "orange"],
-        "animal": ["dog", "cat", "bird", "fish", "horse"],
-        "tool": ["hammer", "wrench", "saw", "drill", "pliers"],
+        "fruit": ["apple", "banana", "cherry", "grape", "orange", "mango", "kiwi", "peach", "pear", "plum",
+                  "strawberry", "blueberry", "watermelon", "pineapple", "lemon"],
+        "animal": ["dog", "cat", "bird", "fish", "horse", "cow", "pig", "sheep", "goat", "chicken",
+                   "rabbit", "mouse", "elephant", "lion", "tiger"],
+        "vehicle": ["car", "bus", "truck", "bike", "train", "plane", "boat", "ship", "motorcycle", "scooter",
+                    "van", "taxi", "subway", "helicopter", "tram"],
+        "color": ["red", "blue", "green", "yellow", "orange", "purple", "pink", "brown", "black", "white",
+                  "gray", "violet", "indigo", "turquoise", "crimson"],
+        "tool": ["hammer", "screwdriver", "wrench", "pliers", "saw", "drill", "chisel", "axe", "knife", "scissors",
+                 "ruler", "tape", "level", "clamp", "file"],
+        "furniture": ["chair", "table", "sofa", "bed", "desk", "cabinet", "shelf", "dresser", "bench", "stool",
+                      "wardrobe", "bookcase", "ottoman", "nightstand", "couch"],
+        "clothing": ["shirt", "pants", "dress", "skirt", "jacket", "coat", "sweater", "hat", "shoes", "socks",
+                     "scarf", "gloves", "belt", "tie", "jeans"],
+        "food": ["pizza", "burger", "pasta", "rice", "bread", "cheese", "salad", "soup", "sandwich", "taco",
+                 "noodles", "steak", "chicken", "fish", "potato"],
+        "sport": ["soccer", "basketball", "tennis", "baseball", "football", "hockey", "volleyball", "golf", "cricket", "rugby",
+                  "swimming", "boxing", "skiing", "skating", "running"],
+        "instrument": ["guitar", "piano", "drums", "violin", "flute", "trumpet", "saxophone", "cello", "clarinet", "harp",
+                       "trombone", "banjo", "accordion", "oboe", "tuba"]
     }
-    NOISE = ["bowl", "window", "door", "cloud", "mountain", "table", "chair", "lamp"]
+
+    # Exact noise words from dataset
+    NOISE_WORDS = ["bowl", "window", "door", "cloud", "mountain", "river", "tree", "rock", "sand", "metal",
+                   "plastic", "glass", "paper", "wood", "stone", "gold", "silver", "copper", "iron", "steel",
+                   "number", "letter", "word", "sentence", "paragraph", "page", "book", "magazine", "newspaper", "document"]
 
     pairs = []
     categories = list(CATEGORIES.keys())
@@ -23,47 +45,58 @@ def generate_simple_pairs(n_pairs: int = 500) -> List[Tuple[Dict, Dict]]:
         category = categories[i % len(categories)]
         cat_words = CATEGORIES[category]
 
-        # Randomly choose 1-3 matching items (averaging ~2)
-        num_matching = random.randint(1, 3)
-        matching = random.sample(cat_words, num_matching)
-        non_matching = random.sample(NOISE, 4 - num_matching)
+        # Match dataset: 8-10 word lists
+        list_length = random.randint(8, 10)
 
-        # Create base list with the matching items
+        # Match dataset: 2-3 matching items (so +1 is still ≤5)
+        num_matching = random.randint(2, 3)
+        matching = random.sample(cat_words, num_matching)
+
+        # Build noise pool from other categories + noise words (like dataset does)
+        non_matching_pool = NOISE_WORDS.copy()
+        for cat, items in CATEGORIES.items():
+            if cat != category:
+                non_matching_pool.extend(items)
+
+        non_matching = random.sample(non_matching_pool, list_length - num_matching)
+
+        # Create base list
         base_list = matching + non_matching
         random.shuffle(base_list)
 
         # Low count: first word is noise
         low_list = base_list.copy()
         if low_list[0] in cat_words:
-            # Swap first word with a noise word
-            low_list[0] = random.choice([w for w in NOISE if w not in low_list])
+            # Swap first word with a noise word not already in list
+            available_noise = [w for w in non_matching_pool if w not in low_list and w not in cat_words]
+            if not available_noise:
+                continue
+            low_list[0] = random.choice(available_noise)
         low_answer = sum(1 for w in low_list if w in cat_words)
 
         # High count: first word is matching
         high_list = base_list.copy()
         if high_list[0] not in cat_words:
-            # Swap first word with a category word
-            high_list[0] = random.choice([w for w in cat_words if w not in high_list])
+            # Swap first word with a category word not already in list
+            available_cat = [w for w in cat_words if w not in high_list]
+            if not available_cat:
+                continue
+            high_list[0] = random.choice(available_cat)
         high_answer = sum(1 for w in high_list if w in cat_words)
 
         # Only keep pairs where they differ by exactly 1
         if high_answer - low_answer != 1:
             continue
 
+        # Use EXACT prompt format from dataset
         prompt_template = """Count how many words in the list below match the given type.
 
 Type: {category}
 List: {word_list}
 
-IMPORTANT: Respond with ONLY a number in parentheses. Nothing else.
-
-Example:
-Type: fruit
-List: apple door banana cloud
-Answer: (2)
-
-Do NOT write "2 (2)" or "The answer is (2)" or any other text.
-ONLY write: (N)
+YOU MUST respond with ONLY a number in parentheses, like this: (5)
+Do NOT include any other text, explanations, or words.
+Just output the number in parentheses and nothing else.
 
 Answer: """
 
@@ -85,7 +118,7 @@ Answer: """
 
     print(f"Generated {len(pairs)} valid pairs (from {n_pairs} attempts)")
     if len(pairs) > 0:
-        print(f"Example: {pairs[0][0]['category']} - Low ({pairs[0][0]['answer']}): {' '.join(pairs[0][0]['word_list'])}, High ({pairs[0][1]['answer']}): {' '.join(pairs[0][1]['word_list'])}")
+        print(f"Example: {pairs[0][0]['category']} - Low ({pairs[0][0]['answer']}): {' '.join(pairs[0][0]['word_list'][:5])}..., High ({pairs[0][1]['answer']}): {' '.join(pairs[0][1]['word_list'][:5])}...")
 
     return pairs
 
