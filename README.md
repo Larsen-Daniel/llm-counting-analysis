@@ -164,7 +164,7 @@ This task is harder than it might initially seem. While counting items in short 
 
 We investigated count representation using two complementary methods on Qwen 2.5 models:
 
-**Activation Patching (Qwen 3B, 100 pairs)**: Patching single-layer activations achieved up to **42% exact match rate** at layer 24, with the strongest effects concentrated in layers 24-31. This demonstrates genuine causal mediation—a single layer's representation can successfully override the model's original computation in a substantial fraction of cases, even when competing against residual connections and attention from earlier layers that processed different inputs.
+**Activation Patching (Qwen 3B, 100 pairs)**: Patching single-layer activations achieved up to **42% exact match rate** at layer 24, with the strongest effects concentrated in layers 24-31. This demonstrates genuine causal mediation—a single layer's representation can successfully override the model's original computation in a substantial fraction of cases, even when competing against residual connections from earlier layers and attention mechanisms throughout the network that retain information about the original input.
 
 **Linear Probing (Qwen 1.5B, 5000 examples)**: Test accuracy improved progressively through the network, from 69.6% (layer 0) to 93.9% (layer 27), with layers 20-27 achieving 90.8-93.9% accuracy. This shows count information becomes increasingly explicit and linearly accessible in later layers.
 
