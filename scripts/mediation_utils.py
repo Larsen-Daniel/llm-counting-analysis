@@ -331,8 +331,8 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
     tested_count = 0
 
     for idx, (pair_low, pair_high) in enumerate(pairs):
-        if len(filtered_pairs) >= 20:
-            print(f"\n✓ Found 20 perfect examples after testing {tested_count} pairs")
+        if len(filtered_pairs) >= 100:
+            print(f"\n✓ Found 100 perfect examples after testing {tested_count} pairs")
             break
 
         tested_count += 1
@@ -396,7 +396,7 @@ def run_mediation_analysis(model, tokenizer, pairs: List[Tuple[Dict, Dict]], dev
             baseline_outputs.append(baseline_answer)
             target_answers.append(pair_low['answer'])
 
-    if len(filtered_pairs) < 20:
+    if len(filtered_pairs) < 100:
         print(f"\nWARNING: Only found {len(filtered_pairs)} perfect examples out of {tested_count} tested")
 
     # Use filtered pairs for rest of analysis

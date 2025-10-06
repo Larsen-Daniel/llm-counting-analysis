@@ -1,0 +1,259 @@
+{
+  "baseline_accuracy": 1.0,
+  "layer_effects": {
+    "0": {
+      "changed_rate": 0.75,
+      "exact_match_rate": 0.05,
+      "mean_effect": 1.631578947368421,
+      "std_effect": 1.023474474522936,
+      "n_exact_matches": 1
+    },
+    "1": {
+      "changed_rate": 0.4,
+      "exact_match_rate": 0.25,
+      "mean_effect": 0.5,
+      "std_effect": 0.6708203932499369,
+      "n_exact_matches": 5
+    },
+    "2": {
+      "changed_rate": 0.1,
+      "exact_match_rate": 0.1,
+      "mean_effect": 0.1,
+      "std_effect": 0.30000000000000004,
+      "n_exact_matches": 2
+    },
+    "3": {
+      "changed_rate": 0.1,
+      "exact_match_rate": 0.1,
+      "mean_effect": 0.1,
+      "std_effect": 0.30000000000000004,
+      "n_exact_matches": 2
+    },
+    "4": {
+      "changed_rate": 0.1,
+      "exact_match_rate": 0.1,
+      "mean_effect": 0.1,
+      "std_effect": 0.30000000000000004,
+      "n_exact_matches": 2
+    },
+    "5": {
+      "changed_rate": 0.15,
+      "exact_match_rate": 0.15,
+      "mean_effect": 0.15,
+      "std_effect": 0.3570714214271425,
+      "n_exact_matches": 3
+    },
+    "6": {
+      "changed_rate": 0.1,
+      "exact_match_rate": 0.1,
+      "mean_effect": 0.1,
+      "std_effect": 0.30000000000000004,
+      "n_exact_matches": 2
+    },
+    "7": {
+      "changed_rate": 0.2,
+      "exact_match_rate": 0.2,
+      "mean_effect": 0.2,
+      "std_effect": 0.4,
+      "n_exact_matches": 4
+    },
+    "8": {
+      "changed_rate": 0.1,
+      "exact_match_rate": 0.1,
+      "mean_effect": 0.1,
+      "std_effect": 0.30000000000000004,
+      "n_exact_matches": 2
+    },
+    "9": {
+      "changed_rate": 0.25,
+      "exact_match_rate": 0.25,
+      "mean_effect": 0.25,
+      "std_effect": 0.4330127018922193,
+      "n_exact_matches": 5
+    },
+    "10": {
+      "changed_rate": 0.1,
+      "exact_match_rate": 0.1,
+      "mean_effect": 0.1,
+      "std_effect": 0.30000000000000004,
+      "n_exact_matches": 2
+    },
+    "11": {
+      "changed_rate": 0.1,
+      "exact_match_rate": 0.1,
+      "mean_effect": 0.1,
+      "std_effect": 0.30000000000000004,
+      "n_exact_matches": 2
+    },
+    "12": {
+      "changed_rate": 0.15,
+      "exact_match_rate": 0.15,
+      "mean_effect": 0.15,
+      "std_effect": 0.3570714214271425,
+      "n_exact_matches": 3
+    },
+    "13": {
+      "changed_rate": 0.15,
+      "exact_match_rate": 0.15,
+      "mean_effect": 0.15,
+      "std_effect": 0.3570714214271425,
+      "n_exact_matches": 3
+    },
+    "14": {
+      "changed_rate": 0.25,
+      "exact_match_rate": 0.15,
+      "mean_effect": 0.25,
+      "std_effect": 0.4330127018922193,
+      "n_exact_matches": 3
+    },
+    "15": {
+      "changed_rate": 0.4,
+      "exact_match_rate": 0.4,
+      "mean_effect": 0.4,
+      "std_effect": 0.48989794855663565,
+      "n_exact_matches": 8
+    },
+    "16": {
+      "changed_rate": 0.45,
+      "exact_match_rate": 0.3,
+      "mean_effect": 0.55,
+      "std_effect": 0.6689544080129827,
+      "n_exact_matches": 6
+    },
+    "17": {
+      "changed_rate": 0.2,
+      "exact_match_rate": 0.2,
+      "mean_effect": 0.2,
+      "std_effect": 0.4000000000000001,
+      "n_exact_matches": 4
+    },
+    "18": {
+      "changed_rate": 0.55,
+      "exact_match_rate": 0.5,
+      "mean_effect": 0.6,
+      "std_effect": 0.5830951894845301,
+      "n_exact_matches": 10
+    },
+    "19": {
+      "changed_rate": 0.4,
+      "exact_match_rate": 0.4,
+      "mean_effect": 0.4,
+      "std_effect": 0.48989794855663565,
+      "n_exact_matches": 8
+    },
+    "20": {
+      "changed_rate": 0.4,
+      "exact_match_rate": 0.4,
+      "mean_effect": 0.4,
+      "std_effect": 0.48989794855663565,
+      "n_exact_matches": 8
+    },
+    "21": {
+      "changed_rate": 0.6,
+      "exact_match_rate": 0.5,
+      "mean_effect": 0.7,
+      "std_effect": 0.6403124237432849,
+      "n_exact_matches": 10
+    },
+    "22": {
+      "changed_rate": 0.3,
+      "exact_match_rate": 0.2,
+      "mean_effect": 0.4,
+      "std_effect": 0.66332495807108,
+      "n_exact_matches": 4
+    },
+    "23": {
+      "changed_rate": 0.65,
+      "exact_match_rate": 0.15,
+      "mean_effect": 0.65,
+      "std_effect": 0.47696960070847283,
+      "n_exact_matches": 3
+    },
+    "24": {
+      "changed_rate": 0.65,
+      "exact_match_rate": 0.65,
+      "mean_effect": 0.65,
+      "std_effect": 0.4769696007084728,
+      "n_exact_matches": 13
+    },
+    "25": {
+      "changed_rate": 0.4,
+      "exact_match_rate": 0.4,
+      "mean_effect": 0.4,
+      "std_effect": 0.48989794855663565,
+      "n_exact_matches": 8
+    },
+    "26": {
+      "changed_rate": 0.55,
+      "exact_match_rate": 0.45,
+      "mean_effect": 0.65,
+      "std_effect": 0.6538348415311012,
+      "n_exact_matches": 9
+    },
+    "27": {
+      "changed_rate": 0.35,
+      "exact_match_rate": 0.35,
+      "mean_effect": 0.35,
+      "std_effect": 0.47696960070847283,
+      "n_exact_matches": 7
+    },
+    "28": {
+      "changed_rate": 0.75,
+      "exact_match_rate": 0.6,
+      "mean_effect": 0.9,
+      "std_effect": 0.6244997998398398,
+      "n_exact_matches": 12
+    },
+    "29": {
+      "changed_rate": 0.6,
+      "exact_match_rate": 0.6,
+      "mean_effect": 0.6,
+      "std_effect": 0.48989794855663565,
+      "n_exact_matches": 12
+    },
+    "30": {
+      "changed_rate": 0.6,
+      "exact_match_rate": 0.6,
+      "mean_effect": 0.6,
+      "std_effect": 0.48989794855663565,
+      "n_exact_matches": 12
+    },
+    "31": {
+      "changed_rate": 0.7,
+      "exact_match_rate": 0.6,
+      "mean_effect": 0.8,
+      "std_effect": 0.6000000000000001,
+      "n_exact_matches": 12
+    },
+    "32": {
+      "changed_rate": 0.55,
+      "exact_match_rate": 0.5,
+      "mean_effect": 0.6,
+      "std_effect": 0.5830951894845301,
+      "n_exact_matches": 10
+    },
+    "33": {
+      "changed_rate": 0.45,
+      "exact_match_rate": 0.45,
+      "mean_effect": 0.47368421052631576,
+      "std_effect": 0.49749371855331,
+      "n_exact_matches": 9
+    },
+    "34": {
+      "changed_rate": 0.45,
+      "exact_match_rate": 0.45,
+      "mean_effect": 0.45,
+      "std_effect": 0.49749371855331004,
+      "n_exact_matches": 9
+    },
+    "35": {
+      "changed_rate": 0.6,
+      "exact_match_rate": 0.6,
+      "mean_effect": 0.6,
+      "std_effect": 0.4898979485566357,
+      "n_exact_matches": 12
+    }
+  },
+  "model_name": "Qwen/Qwen2.5-3B-Instruct",
+  "n_pairs": 20
+}
