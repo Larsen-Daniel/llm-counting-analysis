@@ -5,6 +5,89 @@ import json
 from tqdm import tqdm
 import re
 from scipy import stats
+import random
+
+def generate_simple_pairs(n_pairs: int = 500) -> List[Tuple[Dict, Dict]]:
+    """Generate simple 4-word lists with ~2 matching items (1-3 range)."""
+    CATEGORIES = {
+        "fruit": ["apple", "banana", "cherry", "grape", "orange"],
+        "animal": ["dog", "cat", "bird", "fish", "horse"],
+        "tool": ["hammer", "wrench", "saw", "drill", "pliers"],
+    }
+    NOISE = ["bowl", "window", "door", "cloud", "mountain", "table", "chair", "lamp"]
+
+    pairs = []
+    categories = list(CATEGORIES.keys())
+
+    for i in range(n_pairs):
+        category = categories[i % len(categories)]
+        cat_words = CATEGORIES[category]
+
+        # Randomly choose 1-3 matching items (averaging ~2)
+        num_matching = random.randint(1, 3)
+        matching = random.sample(cat_words, num_matching)
+        non_matching = random.sample(NOISE, 4 - num_matching)
+
+        # Create base list with the matching items
+        base_list = matching + non_matching
+        random.shuffle(base_list)
+
+        # Low count: first word is noise
+        low_list = base_list.copy()
+        if low_list[0] in cat_words:
+            # Swap first word with a noise word
+            low_list[0] = random.choice([w for w in NOISE if w not in low_list])
+        low_answer = sum(1 for w in low_list if w in cat_words)
+
+        # High count: first word is matching
+        high_list = base_list.copy()
+        if high_list[0] not in cat_words:
+            # Swap first word with a category word
+            high_list[0] = random.choice([w for w in cat_words if w not in high_list])
+        high_answer = sum(1 for w in high_list if w in cat_words)
+
+        # Only keep pairs where they differ by exactly 1
+        if high_answer - low_answer != 1:
+            continue
+
+        prompt_template = """Count how many words in the list below match the given type.
+
+Type: {category}
+List: {word_list}
+
+IMPORTANT: Respond with ONLY a number in parentheses. Nothing else.
+
+Example:
+Type: fruit
+List: apple door banana cloud
+Answer: (2)
+
+Do NOT write "2 (2)" or "The answer is (2)" or any other text.
+ONLY write: (N)
+
+Answer: """
+
+        pair_low = {
+            'prompt': prompt_template.format(category=category, word_list=' '.join(low_list)),
+            'word_list': low_list,
+            'category': category,
+            'answer': low_answer
+        }
+
+        pair_high = {
+            'prompt': prompt_template.format(category=category, word_list=' '.join(high_list)),
+            'word_list': high_list,
+            'category': category,
+            'answer': high_answer
+        }
+
+        pairs.append((pair_low, pair_high))
+
+    print(f"Generated {len(pairs)} valid pairs (from {n_pairs} attempts)")
+    if len(pairs) > 0:
+        print(f"Example: {pairs[0][0]['category']} - Low ({pairs[0][0]['answer']}): {' '.join(pairs[0][0]['word_list'])}, High ({pairs[0][1]['answer']}): {' '.join(pairs[0][1]['word_list'])}")
+
+    return pairs
 
 def extract_answer(text: str) -> int | None:
     """Extract numerical answer from model output."""
