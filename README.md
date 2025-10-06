@@ -93,7 +93,7 @@ For each minimal pair and each layer, we:
 - Early layers (0-10) showed minimal effects (<0.25)
 - Mid-to-late layers exhibited a sharp transition, suggesting a computational phase change
 
-**Methodological Note**: The initial implementation measured output magnitude changes rather than exact match rates. While this provided useful signal about which layers encode count-related information, we have since refined the analysis to include multiple metrics (change rate, directional accuracy, exact match) and null hypothesis testing via random sampling baselines.
+**Methodological Note**: While this provided useful signal about which layers encode count-related information, this experiment was held back by the use of a model with subpar performance and an imperfect metric. We have since refined the analysis to include multiple metrics (change rate, directional accuracy, exact match) and moved to the larger Qwen 2.5 3B model.
 
 #### 2.2 Main Experiment: Qwen 2.5 3B Instruct
 
@@ -154,7 +154,7 @@ The progressive increase in probe accuracy through the network (69.6% → 93.9%)
 
 ## Conclusion
 
-This task is harder than it might initially seem. While counting 2-3 items in a 4-word list appears simple, language models typically solve such tasks using chain-of-thought reasoning tokens. Our results show a clear trend: larger models perform substantially better (Llama 3.1 70B: 78.2% vs Qwen 2.5 1.5B: ~35%).
+This task is harder than it might initially seem. While counting items in short lists appears simple, language models typically solve such tasks using chain-of-thought reasoning tokens. Our results show a clear trend: larger models perform substantially better (Llama 3.1 70B: 78.2% vs Qwen 2.5 1.5B: ~35%).
 
 For practical reasons, activation patching experiments are much easier to run on smaller models that fit on consumer GPUs. However, given that these models perform poorly on the base task, we shouldn't expect their activations to have extremely strong correlations to the ground truth.
 
