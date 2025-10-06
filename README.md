@@ -101,7 +101,7 @@ Building on the preliminary findings, we conducted a larger-scale mediation anal
 
 **Results**:
 
-![Mediation vs Probing](results/mediation_vs_probing_qwen3b.png)
+![Activation Patching](results/mediation_qwen3b.png)
 
 | Layer Range | Mean Effect (%) | Changed Rate (%) | Exact Match Rate (%) |
 |-------------|-----------------|------------------|----------------------|
@@ -113,11 +113,12 @@ Building on the preliminary findings, we conducted a larger-scale mediation anal
 **Top Performing Layers by Exact Match Rate**:
 - **Layer 24**: 42% exact match, 47% mean effect, 46% changed rate
 - Layer 28: 40% exact match, 64% mean effect, 55% changed rate
+- Layer 30: 39% exact match, 46% mean effect, 43% changed rate
+- Layer 31: 36% exact match, 49% mean effect, 44% changed rate
 - Layer 26: 32% exact match, 52% mean effect, 44% changed rate
-- Layer 18: 26% exact match, 30% mean effect, 29% changed rate
 
 **Key Findings**:
-The 3B model shows **substantially stronger causal effects** than the 1.5B model. Layer 24 achieves a **42% exact match rate**, meaning that patching a single layer's activation successfully shifts the model's output to the target count in 42% of cases. While this is still below the 92.6% probe accuracy at the same layer, it demonstrates genuine causal mediation of count information. The convergence of peaks around layers 18-28 across both methods suggests these layers play a critical role in count representation and processing.
+The 3B model shows **substantially stronger causal effects** than the 1.5B model. Layer 24 achieves a **42% exact match rate**, meaning that patching a single layer's activation successfully shifts the model's output to the target count in 42% of cases. This demonstrates genuine causal mediation of count information. The strongest effects concentrate in the later layers (24-31), suggesting these layers play a critical role in finalizing count representations.
 
 ---
 
@@ -161,20 +162,20 @@ This task is harder than it might initially seem. While counting items in short 
 
 ### Convergent Evidence for Late-Layer Count Representation
 
-We found strong convergent evidence across two complementary methods on Qwen 2.5 models:
+We investigated count representation using two complementary methods on Qwen 2.5 models:
 
-**Activation Patching (Qwen 3B, 100 pairs)**: Patching single-layer activations achieved up to **42% exact match rate** at layer 24, with consistent effects across layers 18-28. This demonstrates genuine causal mediation—a single layer's representation can successfully override the model's original computation in a substantial fraction of cases.
+**Activation Patching (Qwen 3B, 100 pairs)**: Patching single-layer activations achieved up to **42% exact match rate** at layer 24, with the strongest effects concentrated in layers 24-31. This demonstrates genuine causal mediation—a single layer's representation can successfully override the model's original computation in a substantial fraction of cases, even when competing against residual connections and attention from earlier layers that processed different inputs.
 
 **Linear Probing (Qwen 1.5B, 5000 examples)**: Test accuracy improved progressively through the network, from 69.6% (layer 0) to 93.9% (layer 27), with layers 20-27 achieving 90.8-93.9% accuracy. This shows count information becomes increasingly explicit and linearly accessible in later layers.
 
-### Comparing Causal Intervention vs. Linear Readout
+### Understanding the Methods
 
-Linear probing substantially outperformed activation patching (93.9% vs 42% at peak layers). This gap reflects fundamental differences in what these methods measure:
+These methods provide complementary insights:
 
-- **Linear probes** passively read out information that correlates with the count, including statistical patterns that may not be causally used by the model
-- **Activation patching** actively tests whether a representation can causally steer the model's behavior when competing against residual streams and attention from earlier layers
+- **Linear probes** passively read out information that correlates with the count, revealing what information is present in the representations
+- **Activation patching** actively tests whether a representation can causally steer the model's behavior, revealing which layers mediate the computation
 
-The 42% exact match rate from patching demonstrates that late-layer representations do causally mediate counting, even if they cannot fully override all competing information sources. The convergence of both methods on layers 18-28 provides strong evidence that these layers are critical for count processing.
+The 42% exact match rate from patching demonstrates that late-layer representations causally mediate counting behavior. Both methods independently identify late layers as critical for count processing, though they measure different aspects of the representation.
 
 ---
 
@@ -188,8 +189,10 @@ The 42% exact match rate from patching demonstrates that late-layer representati
 │   ├── benchmark_results_bedrock.json    # Bedrock benchmarking results
 │   ├── qwen_benchmark_results.json       # Qwen 3B benchmarking results
 │   ├── benchmark_comparison.png          # Combined benchmark visualization
-│   ├── mediation_results_v2.json         # Causal mediation results
-│   └── mediation_results_v2.png          # Mediation visualization
+│   ├── mediation_results_qwen3b-final.json  # Qwen 3B mediation results (100 pairs)
+│   ├── mediation_qwen3b.png              # Qwen 3B mediation visualization
+│   ├── mediation_results_v2.json         # Qwen 1.5B mediation results
+│   └── probe_results_v2.json             # Qwen 1.5B probe results
 │
 ├── notebooks/
 │   └── qwen_benchmark_colab.ipynb # Colab notebook (runs benchmarking + mediation)
@@ -198,8 +201,9 @@ The 42% exact match rate from patching demonstrates that late-layer representati
     ├── generate_dataset.py        # [AUXILIARY] Creates counting_dataset.jsonl
     ├── benchmark_bedrock.py       # [MAIN] Bedrock benchmarking
     ├── plot_benchmark.py          # [AUXILIARY] Creates benchmark_comparison.png
+    ├── plot_mediation_qwen3b.py   # [AUXILIARY] Creates mediation_qwen3b.png
     ├── mediation_utils.py         # [AUXILIARY] Helper functions for mediation
-    └── causal_mediation_v2.py     # [NOT USED - see notebook instead]
+    └── causal_mediation_v2.py     # [MAIN] Qwen 1.5B mediation and probing
 ```
 
 ### Scripts Used for Final Results
@@ -209,15 +213,17 @@ The 42% exact match rate from patching demonstrates that late-layer representati
 - `notebooks/qwen_benchmark_colab.ipynb` (benchmark section) → `results/qwen_benchmark_results.json`
 - `scripts/plot_benchmark.py` → `results/benchmark_comparison.png`
 
-**Experiment 2: Mechanistic Analysis (Qwen 2.5 1.5B)**
-- Causal mediation analysis executed via standalone Python script on AWS EC2
-- Linear probe training executed via standalone Python script on AWS EC2
-- Results: `results/mediation_results_v2.json`, `results/probe_results_v2.json`
+**Experiment 2: Causal Mediation Analysis**
+- Qwen 1.5B: `scripts/causal_mediation_v2.py` on AWS EC2 → `results/mediation_results_v2.json`
+- Qwen 3B: `notebooks/qwen_benchmark_colab.ipynb` (mediation section) → `results/mediation_results_qwen3b-final.json`
+- `scripts/plot_mediation_qwen3b.py` → `results/mediation_qwen3b.png`
+
+**Experiment 3: Linear Probe Analysis**
+- Qwen 1.5B: `scripts/causal_mediation_v2.py` on AWS EC2 → `results/probe_results_v2.json`
 
 **Auxiliary Scripts**
 - `scripts/generate_dataset.py` - Dataset generation
 - `scripts/mediation_utils.py` - Helper functions for mediation analysis
-- `scripts/causal_mediation_v2.py` - [DEPRECATED] Early mediation script (replaced by notebook implementation)
 
 ---
 
