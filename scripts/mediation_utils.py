@@ -7,8 +7,12 @@ import re
 from scipy import stats
 import random
 
-def generate_simple_pairs(n_pairs: int = 500) -> List[Tuple[Dict, Dict]]:
-    """Generate pairs matching dataset format: 8-10 word lists with 2-3 matching items."""
+def generate_simple_pairs(dataset: List[Dict], n_pairs: int = 500) -> List[Tuple[Dict, Dict]]:
+    """Generate pairs from dataset examples by swapping first word only.
+
+    Takes dataset examples where first word matches category, creates minimal pair
+    by swapping first word to non-matching word (reducing count by 1).
+    """
     # Use exact vocabulary from dataset (generate_dataset.py)
     CATEGORIES = {
         "fruit": ["apple", "banana", "cherry", "grape", "orange", "mango", "kiwi", "peach", "pear", "plum",
@@ -38,55 +42,41 @@ def generate_simple_pairs(n_pairs: int = 500) -> List[Tuple[Dict, Dict]]:
                    "plastic", "glass", "paper", "wood", "stone", "gold", "silver", "copper", "iron", "steel",
                    "number", "letter", "word", "sentence", "paragraph", "page", "book", "magazine", "newspaper", "document"]
 
-    pairs = []
-    categories = list(CATEGORIES.keys())
+    # Build noise pool from other categories + noise words
+    all_noise = NOISE_WORDS.copy()
+    for cat, items in CATEGORIES.items():
+        all_noise.extend(items)
 
-    for i in range(n_pairs):
-        category = categories[i % len(categories)]
+    pairs = []
+
+    for ex in dataset:
+        if len(pairs) >= n_pairs:
+            break
+
+        category = ex['category']
+        word_list = ex['word_list']
         cat_words = CATEGORIES[category]
 
-        # Match dataset: 8-10 word lists
-        list_length = random.randint(8, 10)
-
-        # Match dataset: 2-3 matching items (so +1 is still ≤5)
-        num_matching = random.randint(2, 3)
-        matching = random.sample(cat_words, num_matching)
-
-        # Build noise pool from other categories + noise words (like dataset does)
-        non_matching_pool = NOISE_WORDS.copy()
-        for cat, items in CATEGORIES.items():
-            if cat != category:
-                non_matching_pool.extend(items)
-
-        non_matching = random.sample(non_matching_pool, list_length - num_matching)
-
-        # Create base list
-        base_list = matching + non_matching
-        random.shuffle(base_list)
-
-        # Low count: first word is noise
-        low_list = base_list.copy()
-        if low_list[0] in cat_words:
-            # Swap first word with a noise word not already in list
-            available_noise = [w for w in non_matching_pool if w not in low_list and w not in cat_words]
-            if not available_noise:
-                continue
-            low_list[0] = random.choice(available_noise)
-        low_answer = sum(1 for w in low_list if w in cat_words)
-
-        # High count: first word is matching
-        high_list = base_list.copy()
-        if high_list[0] not in cat_words:
-            # Swap first word with a category word not already in list
-            available_cat = [w for w in cat_words if w not in high_list]
-            if not available_cat:
-                continue
-            high_list[0] = random.choice(available_cat)
-        high_answer = sum(1 for w in high_list if w in cat_words)
-
-        # Only keep pairs where they differ by exactly 1
-        if high_answer - low_answer != 1:
+        # Only use examples where first word matches the category
+        if word_list[0] not in cat_words:
             continue
+
+        # Create high-count pair (original dataset example)
+        pair_high = {
+            'prompt': ex['prompt'],
+            'word_list': word_list,
+            'category': category,
+            'answer': ex['answer']
+        }
+
+        # Create low-count pair by swapping first word with noise
+        low_list = word_list.copy()
+        available_noise = [w for w in all_noise if w not in word_list and w not in cat_words]
+        if not available_noise:
+            continue
+
+        low_list[0] = random.choice(available_noise)
+        low_answer = sum(1 for w in low_list if w in cat_words)
 
         # Use EXACT prompt format from dataset
         prompt_template = """Count how many words in the list below match the given type.
@@ -107,16 +97,9 @@ Answer: """
             'answer': low_answer
         }
 
-        pair_high = {
-            'prompt': prompt_template.format(category=category, word_list=' '.join(high_list)),
-            'word_list': high_list,
-            'category': category,
-            'answer': high_answer
-        }
-
         pairs.append((pair_low, pair_high))
 
-    print(f"Generated {len(pairs)} valid pairs (from {n_pairs} attempts)")
+    print(f"Generated {len(pairs)} pairs from dataset examples")
     if len(pairs) > 0:
         print(f"Example: {pairs[0][0]['category']} - Low ({pairs[0][0]['answer']}): {' '.join(pairs[0][0]['word_list'][:5])}..., High ({pairs[0][1]['answer']}): {' '.join(pairs[0][1]['word_list'][:5])}...")
 
